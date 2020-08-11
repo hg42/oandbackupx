@@ -31,13 +31,40 @@ import androidx.annotation.Nullable;
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.R;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 
 public class FileUtils {
+    // TODO replace the usage of Environment.getExternalStorageDirectory()
+    public static final String DEFAULT_BACKUP_FOLDER = "content://com.android.externalstorage.documents/tree/primary%3AOABXNG";
+
     private static final String TAG = Constants.classTag(".FileUtils");
     private boolean fallbackFlag;
+
+    public static BufferedReader openFileForReading(Context context, Uri uri) throws FileNotFoundException {
+        return new BufferedReader(
+                new InputStreamReader(context.getContentResolver().openInputStream(uri), StandardCharsets.UTF_8)
+        );
+    }
+
+    public static BufferedWriter openFileForWriting(Context context, Uri uri) throws FileNotFoundException {
+        return FileUtils.openFileForWriting(context, uri, "w");
+    }
+
+    public static BufferedWriter openFileForWriting(Context context, Uri uri, String mode) throws FileNotFoundException {
+        return new BufferedWriter(
+                new OutputStreamWriter(context.getContentResolver().openOutputStream(uri, mode), StandardCharsets.UTF_8)
+        );
+    }
+
+    // OLD: To check if still needed or valid
 
     public static String getDefaultBackupFolderPath(Context context) {
         return FileUtils.getExternalStorageDirectory(context) + File.separator + "OABX";

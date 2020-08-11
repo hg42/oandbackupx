@@ -23,10 +23,13 @@ import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.utils.CommandUtils;
 import com.topjohnwu.superuser.Shell;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class ShellHandler {
     private static final String TAG = Constants.classTag(".ShellHandler");
@@ -70,8 +73,17 @@ public class ShellHandler {
     }
 
     public String[] suGetDirectoryContents(File path) throws ShellCommandFailedException {
-        Shell.Result shellResult = ShellHandler.runAsRoot(String.format("%s ls %s", this.utilboxPath, path.getAbsolutePath()));
+        Shell.Result shellResult = ShellHandler.runAsRoot(String.format("%s ls \"%s\"", this.utilboxPath, path.getAbsolutePath()));
         return shellResult.getOut().toArray(new String[0]);
+    }
+
+    public List<FileInfo> suGetDetailedDirectoryContents(File path) throws ShellCommandFailedException {
+        Shell.Result shellResult = ShellHandler.runAsRoot(String.format("%s ls -Ao \"%s\"", this.utilboxPath, path.getAbsolutePath()));
+        // Remove the first line with the total amount
+        shellResult.getOut().remove(0);
+        return shellResult.getOut().stream()
+                .map(FileInfo::fromLsOOutput)
+                .collect(Collectors.toCollection(ArrayList::new));
     }
 
     /**
@@ -154,6 +166,52 @@ public class ShellHandler {
 
         public String getTriedBinaries() {
             return this.triedBinaries;
+        }
+    }
+
+    public static class FileInfo {
+        public enum FileType {
+            REGULAR_FILE, BLOCK_DEVICE, CHAR_DEVICE, DIRECTORY, SYMBOLIC_LINK, NAMED_PIPE, SOCKET
+        }
+
+        private final String filename;
+        private final FileType filetype;
+
+        protected FileInfo(@NotNull String filename, @NotNull FileType filetype) {
+            this.filename = filename;
+            this.filetype = filetype;
+        }
+
+        /**
+         * Create an instance of FileInfo from a line of the output from
+         * `ls -AofF`
+         * @param lsLine single output line of `ls -Ao`
+         * @return an instance of FileInfo
+         */
+        public static FileInfo fromLsOOutput(String lsLine){
+            // Format
+            // [0] Filemode, [1] number of directories/links inside, [2] size
+            // [3] mdate, [4] mtime, [5] filename
+            String[] tokens = lsLine.split(" ", 6);
+            FileType type;
+            switch(tokens[0].charAt(0)){
+                case 'd': type = FileType.DIRECTORY; break;
+                case 'l': type = FileType.SYMBOLIC_LINK; break;
+                case 'p': type = FileType.NAMED_PIPE; break;
+                case 's': type = FileType.SOCKET; break;
+                case 'b': type = FileType.BLOCK_DEVICE; break;
+                case 'c': type = FileType.CHAR_DEVICE; break;
+                default: type = FileType.REGULAR_FILE; break;
+            }
+            return new FileInfo(tokens[5], type);
+        }
+
+        public FileType getFiletype() {
+            return this.filetype;
+        }
+
+        public String getFilename() {
+            return this.filename;
         }
     }
 }

@@ -22,6 +22,7 @@ import android.util.Log;
 
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.items.AppInfo;
+import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.LogUtils;
 import com.topjohnwu.superuser.Shell;
@@ -174,7 +175,7 @@ public class ShellCommands {
         return result;
     }
 
-    public static String wipeCacheCommand(Context ctx, AppInfo app) {
+    public static String wipeCacheCommand(Context ctx, AppInfoV2 app) {
         String dataDir = app.getDataDir();
         String deDataDir = app.getDeviceProtectedDataDir();
         StringBuilder command = new StringBuilder(String.format("rm -rf %s/cache %s/code_cache", dataDir, dataDir));
