@@ -224,10 +224,12 @@ public class PrefsFragment extends PreferenceFragmentCompat {
                 String oldDir = FileUtils.getBackupDirectoryPath(requireContext());
                 String newPath = FileUtils.getAbsolutPath(requireContext(), DocumentsContract.buildDocumentUriUsingTree(uri,
                         DocumentsContract.getTreeDocumentId(uri)));
+                newPath = uri.toString();
                 if (!oldDir.equals(newPath)) {
                     Log.i(TAG, "setting uri " + newPath);
                     setDefaultDir(requireContext(), newPath);
                 }
+                com.machiav3lli.backup.handler.BackendController.getAvailableBackups(this.getContext());
             }
         }
     }

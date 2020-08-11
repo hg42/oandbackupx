@@ -45,6 +45,7 @@ import com.machiav3lli.backup.dialogs.BatchConfirmDialog;
 import com.machiav3lli.backup.fragments.AppSheet;
 import com.machiav3lli.backup.fragments.SortFilterSheet;
 import com.machiav3lli.backup.handler.AppInfoHelper;
+import com.machiav3lli.backup.handler.BackendController;
 import com.machiav3lli.backup.handler.BackupRestoreHelper;
 import com.machiav3lli.backup.handler.HandleMessages;
 import com.machiav3lli.backup.handler.NotificationHelper;
@@ -52,6 +53,7 @@ import com.machiav3lli.backup.handler.ShellHandler;
 import com.machiav3lli.backup.handler.SortFilterManager;
 import com.machiav3lli.backup.items.ActionResult;
 import com.machiav3lli.backup.items.AppInfo;
+import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.items.BatchItemX;
 import com.machiav3lli.backup.items.MainItemX;
 import com.machiav3lli.backup.items.SortFilterModel;
@@ -551,6 +553,21 @@ public class MainActivityX extends BaseActivity implements BatchConfirmDialog.Co
             }
         }
         return list;
+                    int position = sheetApp.getPosition();
+                    if (itemAdapter.getItemList().size() > position) {
+                        if (sheetApp.getPackageName().equals(fastAdapter.getItem(position).getApp().getPackageName())) {
+                            sheetApp.updateApp(fastAdapter.getItem(position));
+                        } else {
+                            sheetApp.dismissAllowingStateLoss();
+                        }
+                    } else {
+                        sheetApp.dismissAllowingStateLoss();
+                    }
+                }
+                binding.searchView.setQuery("", false);
+                binding.refreshLayout.setRefreshing(false);
+            });*/
+        }).start();
     }
 
     private boolean toAddToBatch(boolean backupBoolean, AppInfo app) {

@@ -45,8 +45,8 @@ public class BatchConfirmDialog extends DialogFragment {
         String title = backupBoolean ? getString(R.string.backupConfirmation) : getString(R.string.restoreConfirmation);
         StringBuilder message = new StringBuilder();
         assert selectedList != null;
-        for (AppInfo app : selectedList)
-            message.append(app.getLabel()).append("\n");
+        for (BatchItemX item : selectedList)
+            message.append(item.getApp().getAppInfo().getPackageLabel()).append("\n");
         AlertDialog.Builder builder = new AlertDialog.Builder(requireActivity());
         builder.setTitle(title);
         builder.setMessage(message.toString().trim());
