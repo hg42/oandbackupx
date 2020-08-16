@@ -18,12 +18,15 @@
 package com.machiav3lli.backup.handler.action;
 
 import android.content.Context;
+import android.net.Uri;
 
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.handler.ShellHandler;
 import com.machiav3lli.backup.items.ActionResult;
 import com.machiav3lli.backup.items.AppInfo;
+import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.utils.FileUtils;
+import com.machiav3lli.backup.utils.PrefUtils;
 import com.topjohnwu.superuser.Shell;
 
 import java.io.File;
@@ -54,7 +57,11 @@ public abstract class BaseAppAction {
         return err.get(err.size() - 1);
     }
 
-    public abstract ActionResult run(AppInfo app, int backupMode);
+    public ActionResult run(AppInfoV2 app) {
+        return this.run(app, AppInfo.MODE_BOTH);
+    }
+
+    public abstract ActionResult run(AppInfoV2 app, int backupMode);
 
     protected ShellHandler getShell() {
         return this.shell;
@@ -68,8 +75,8 @@ public abstract class BaseAppAction {
         return new File(this.getBackupFolder(), app.getPackageName());
     }
 
-    public File getDataBackupFolder(AppInfo app) {
-        return new File(this.getAppBackupFolder(app), BaseAppAction.BACKUP_DIR_DATA);
+    public Uri getDataBackupFile(Uri backupInstance) {
+        return backupInstance.buildUpon().appendPath(BaseAppAction.BACKUP_DIR_DATA).build();
     }
 
     public File getExternalFilesBackupFolder(AppInfo app) {
@@ -84,8 +91,11 @@ public abstract class BaseAppAction {
         return new File(this.getAppBackupFolder(app), BaseAppAction.BACKUP_DIR_DEVICE_PROTECTED_FILES);
     }
 
-    public File getBackupArchive(AppInfo app, String what, boolean isEncrypted) {
-        return new File(String.format("%s/%s.tar.gz%s", this.getAppBackupFolder(app), what, (isEncrypted ? ".enc" : "")));
+    public Uri getBackupArchive(Uri backupInstance, String what, boolean isEncrypted) {
+        return backupInstance
+                .buildUpon()
+                .appendPath(what + ".tar.gz" + (isEncrypted ? ".enc" : ""))
+                .build();
     }
 
     public String prependUtilbox(String command) {

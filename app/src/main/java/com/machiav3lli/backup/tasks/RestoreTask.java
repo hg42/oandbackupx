@@ -22,12 +22,13 @@ import com.machiav3lli.backup.handler.BackupRestoreHelper;
 import com.machiav3lli.backup.handler.HandleMessages;
 import com.machiav3lli.backup.handler.ShellHandler;
 import com.machiav3lli.backup.items.AppInfo;
+import com.machiav3lli.backup.items.AppInfoV2;
 
 import java.io.File;
 
 // TODO rebase those Tasks, as AsyncTask is deprecated
 public class RestoreTask extends BaseTask {
-    public RestoreTask(AppInfo appInfo, HandleMessages handleMessages, MainActivityX oAndBackupX,
+    public RestoreTask(AppInfoV2 appInfo, HandleMessages handleMessages, MainActivityX oAndBackupX,
                        File backupDirectory, ShellHandler shellHandler, int restoreMode) {
         super(BackupRestoreHelper.ActionType.RESTORE, appInfo, handleMessages,
                 oAndBackupX, backupDirectory, shellHandler, restoreMode);

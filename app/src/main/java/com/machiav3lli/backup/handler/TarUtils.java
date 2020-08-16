@@ -20,18 +20,25 @@ package com.machiav3lli.backup.handler;
 import android.system.ErrnoException;
 import android.system.Os;
 
+import com.topjohnwu.superuser.io.SuFileInputStream;
+
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
+import org.apache.commons.compress.archivers.tar.TarConstants;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.commons.io.FileUtils;
 
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
+
+import kotlin.NotImplementedError;
 
 public final class TarUtils {
 
@@ -48,7 +55,7 @@ public final class TarUtils {
         String entryName = parent + inputFilepath.getName();
         TarArchiveEntry archiveEntry = new TarArchiveEntry(inputFilepath, entryName);
         // Interject for symlinks
-        if(FileUtils.isSymlink(inputFilepath)){
+        if (FileUtils.isSymlink(inputFilepath)) {
             archiveEntry.setLinkName(inputFilepath.getCanonicalPath());
         }
         archive.putArchiveEntry(archiveEntry);
@@ -63,9 +70,47 @@ public final class TarUtils {
             for (File nextFile : Objects.requireNonNull(inputFilepath.listFiles(), "Directory listing returned null!")) {
                 TarUtils.addFilepath(archive, nextFile, entryName + File.separator);
             }
-        }else{
+        } else {
             // in case of a symlink
             archive.closeArchiveEntry();
+        }
+    }
+
+    public static void suAddFiles(TarArchiveOutputStream archive, List<ShellHandler.FileInfo> allFiles) throws IOException {
+        for (ShellHandler.FileInfo file : allFiles) {
+            TarArchiveEntry entry;
+            switch (file.getFiletype()) {
+                case REGULAR_FILE:
+                    entry = new TarArchiveEntry(new File(file.getFilepath()));
+                    archive.putArchiveEntry(entry);
+                    try (SuFileInputStream in = new SuFileInputStream(file.getAbsolutePath())) {
+                        IOUtils.copy(in, archive);
+                    }
+                    archive.closeArchiveEntry();
+                    break;
+                case BLOCK_DEVICE:
+                    throw new NotImplementedError("Block devices should not occur");
+                case CHAR_DEVICE:
+                    throw new NotImplementedError("Char devices should not occur");
+                case DIRECTORY:
+                    entry = new TarArchiveEntry(file.getFilepath(), TarConstants.LF_DIR);
+                    archive.putArchiveEntry(entry);
+                    archive.closeArchiveEntry();
+                    break;
+                case SYMBOLIC_LINK:
+                    entry = new TarArchiveEntry(file.getFilepath(), TarConstants.LF_LINK);
+                    entry.setLinkName(file.getLinkName());
+                    archive.putArchiveEntry(entry);
+                    archive.closeArchiveEntry();
+                    break;
+                case NAMED_PIPE:
+                    entry = new TarArchiveEntry(file.getFilepath(), TarConstants.LF_FIFO);
+                    archive.putArchiveEntry(entry);
+                    archive.closeArchiveEntry();
+                    break;
+                case SOCKET:
+                    throw new NotImplementedError("It does not make sense to backup sockets");
+            }
         }
     }
 

@@ -29,6 +29,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class ShellHandler {
@@ -77,13 +78,37 @@ public class ShellHandler {
         return shellResult.getOut().toArray(new String[0]);
     }
 
-    public List<FileInfo> suGetDetailedDirectoryContents(File path) throws ShellCommandFailedException {
-        Shell.Result shellResult = ShellHandler.runAsRoot(String.format("%s ls -Ao \"%s\"", this.utilboxPath, path.getAbsolutePath()));
+    public List<FileInfo> suGetDetailedDirectoryContents(String path, boolean recursive) throws ShellCommandFailedException {
+        return this.suGetDetailedDirectoryContents(path, recursive, "");
+    }
+
+    public List<FileInfo> suGetDetailedDirectoryContents(String path, boolean recursive, String parent) throws ShellCommandFailedException {
+        // Expecting something like this (with whitespace)
+        // "drwxrwx--x 3 u0_a74 u0_a74       4096 2020-08-14 13:54 files"
+        // Special case:
+        // "lrwxrwxrwx 1 root   root           60 2020-08-13 23:28 lib -> /data/app/org.mozilla.fenix-ddea_jq2cVLmYxBKu0ummg==/lib/x86"
+        Shell.Result shellResult = ShellHandler.runAsRoot(String.format("%s ls -Al \"%s\"", this.utilboxPath, path));
         // Remove the first line with the total amount
         shellResult.getOut().remove(0);
-        return shellResult.getOut().stream()
-                .map(FileInfo::fromLsOOutput)
+        ArrayList<FileInfo> result = shellResult.getOut().stream()
+                .filter(line -> !line.isEmpty())
+                .filter(line -> !line.startsWith("total"))
+                .filter(line -> ShellHandler.splitWithoutEmptyValues(line, " ", 0).length < 7 )
+                .map(line -> FileInfo.fromLsOOutput(line, parent))
                 .collect(Collectors.toCollection(ArrayList::new));
+        if (recursive) {
+            FileInfo[] directories = result.stream()
+                    .filter(fileInfo -> fileInfo.filetype.equals(FileInfo.FileType.DIRECTORY))
+                    .toArray(FileInfo[]::new);
+            for (FileInfo dir : directories) {
+                result.addAll(this.suGetDetailedDirectoryContents(
+                        new File(dir.filepath).getAbsolutePath(),
+                        true,
+                        parent + '/' + dir.getFilename())
+                );
+            }
+        }
+        return result;
     }
 
     /**
@@ -124,6 +149,14 @@ public class ShellHandler {
             throw new UtilboxNotAvailableException(utilboxPath, e);
         }
         this.utilboxPath = utilboxPath;
+    }
+
+    static String[] splitWithoutEmptyValues(String str, String regex, int limit){
+        String[] split = Arrays.stream(str.split(regex)).filter(s -> !s.isEmpty()).toArray(String[]::new);
+        int targetSize = limit > 0 ? Math.min(split.length, limit) : split.length;
+        String[] result = new String[targetSize];
+        System.arraycopy(split, 0, result, 0, targetSize);
+        return result;
     }
 
     public interface RunnableShellCommand {
@@ -170,48 +203,90 @@ public class ShellHandler {
     }
 
     public static class FileInfo {
+        private static final Pattern PATTERN_LINKSPLIT = Pattern.compile(" -> ");
+
         public enum FileType {
             REGULAR_FILE, BLOCK_DEVICE, CHAR_DEVICE, DIRECTORY, SYMBOLIC_LINK, NAMED_PIPE, SOCKET
         }
 
-        private final String filename;
+        private final String filepath;
         private final FileType filetype;
+        private final String absolutePath;
+        private String linkName;
 
-        protected FileInfo(@NotNull String filename, @NotNull FileType filetype) {
-            this.filename = filename;
+        protected FileInfo(@NotNull String filepath, @NotNull FileType filetype, @NotNull String absoluteParent) {
+            this.filepath = filepath;
             this.filetype = filetype;
+            this.absolutePath = absoluteParent + '/' + new File(filepath).getName();
         }
 
         /**
          * Create an instance of FileInfo from a line of the output from
          * `ls -AofF`
-         * @param lsLine single output line of `ls -Ao`
+         *
+         * @param lsLine single output line of `ls -Al`
          * @return an instance of FileInfo
          */
-        public static FileInfo fromLsOOutput(String lsLine){
+        public static FileInfo fromLsOOutput(String lsLine, String parentPath, String absoluteParent) {
             // Format
-            // [0] Filemode, [1] number of directories/links inside, [2] size
-            // [3] mdate, [4] mtime, [5] filename
-            String[] tokens = lsLine.split(" ", 6);
+            // [0] Filemode, [1] number of directories/links inside, [2] owner [3] group [4] size
+            // [5] mdate, [6] mtime, [7] filename
+            String[] tokens = ShellHandler.splitWithoutEmptyValues(lsLine, " ", 7);
             FileType type;
-            switch(tokens[0].charAt(0)){
-                case 'd': type = FileType.DIRECTORY; break;
-                case 'l': type = FileType.SYMBOLIC_LINK; break;
-                case 'p': type = FileType.NAMED_PIPE; break;
-                case 's': type = FileType.SOCKET; break;
-                case 'b': type = FileType.BLOCK_DEVICE; break;
-                case 'c': type = FileType.CHAR_DEVICE; break;
-                default: type = FileType.REGULAR_FILE; break;
+            String linkName = null;
+            String filepath = parentPath + '/' + tokens[7];
+            switch (tokens[0].charAt(0)) {
+                case 'd':
+                    type = FileType.DIRECTORY; break;
+                case 'l':
+                    type = FileType.SYMBOLIC_LINK;
+                    String[] nameAndLink = FileInfo.PATTERN_LINKSPLIT.split(filepath);
+                    filepath = nameAndLink[0];
+                    linkName = nameAndLink[1];
+                    break;
+                case 'p':
+                    type = FileType.NAMED_PIPE; break;
+                case 's':
+                    type = FileType.SOCKET; break;
+                case 'b':
+                    type = FileType.BLOCK_DEVICE; break;
+                case 'c':
+                    type = FileType.CHAR_DEVICE; break;
+                default:
+                    type = FileType.REGULAR_FILE; break;
             }
-            return new FileInfo(tokens[5], type);
+            FileInfo result = new FileInfo(filepath, type, absoluteParent);
+            result.linkName = linkName;
+            return result;
+        }
+
+        public static FileInfo fromLsOOutput(String lsLine, String absoluteParent) {
+            return FileInfo.fromLsOOutput(lsLine, "", absoluteParent);
         }
 
         public FileType getFiletype() {
             return this.filetype;
         }
 
+        /**
+         * Returns the filepath, relative to the original location
+         *
+         * @return relative filepath
+         */
+        public String getFilepath() {
+            return this.filepath;
+        }
+
         public String getFilename() {
-            return this.filename;
+            return new File(this.filepath).getName();
+        }
+
+        public String getAbsolutePath() {
+            return this.absolutePath;
+        }
+
+        public String getLinkName() {
+            return this.linkName;
         }
     }
 }

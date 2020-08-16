@@ -31,6 +31,8 @@ import com.machiav3lli.backup.handler.ShellHandler;
 import com.machiav3lli.backup.handler.TarUtils;
 import com.machiav3lli.backup.items.ActionResult;
 import com.machiav3lli.backup.items.AppInfo;
+import com.machiav3lli.backup.items.AppInfoV2;
+import com.machiav3lli.backup.items.BackupProperties;
 import com.machiav3lli.backup.utils.PrefUtils;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -57,28 +59,29 @@ public class RestoreAppAction extends BaseAppAction {
     }
 
     @Override
-    public ActionResult run(AppInfo app, int backupMode) {
-        Log.i(RestoreAppAction.TAG, String.format("Restoring up: %s [%s]", app.getPackageName(), app.getLabel()));
+    public ActionResult run(AppInfoV2 app, BackupProperties backupProperties, int backupMode) {
+        Log.i(RestoreAppAction.TAG, String.format("Restoring up: %s [%s]", app.getPackageName(), app.getAppInfo().getPackageLabel()));
         try {
             this.killPackage(app.getPackageName());
             if ((backupMode & AppInfo.MODE_APK) == AppInfo.MODE_APK) {
-                this.restorePackage(app);
+                this.restorePackage(app, backupProperties);
             }
 
             if ((backupMode & AppInfo.MODE_DATA) == AppInfo.MODE_DATA) {
-                this.restoreAllData(app);
+                this.restoreAllData(app, backupProperties);
             }
         } catch (RestoreFailedException | Crypto.CryptoSetupException | PackageManager.NameNotFoundException e) {
-            return new ActionResult(
-                    app,
+            return new ActionResult(app,
+                    null,
                     String.format("%s: %s", e.getClass().getSimpleName(), e.getMessage()),
                     false
             );
         }
-        return new ActionResult(app, "", true);
+        Log.i(RestoreAppAction.TAG, String.format("%s: Backup done: %s", app, backupProperties));
+        return new ActionResult(app, backupProperties, "", true);
     }
 
-    protected void restoreAllData(AppInfo app) throws Crypto.CryptoSetupException, RestoreFailedException, PackageManager.NameNotFoundException {
+    protected void restoreAllData(AppInfoV2 app, BackupProperties backupProperties) throws Crypto.CryptoSetupException, RestoreFailedException, PackageManager.NameNotFoundException {
         this.restoreData(app);
         SharedPreferences prefs = PrefUtils.getDefaultSharedPreferences(this.getContext());
         if (prefs.getBoolean(Constants.PREFS_EXTERNALDATA, true)) {
@@ -106,7 +109,7 @@ public class RestoreAppAction extends BaseAppAction {
         in.close();
     }
 
-    public void restorePackage(AppInfo app) throws RestoreFailedException {
+    public void restorePackage(AppInfoV2 app, BackupProperties backupProperties) throws RestoreFailedException {
         Log.i(RestoreAppAction.TAG, String.format("%s: Restoring package", app));
         String[] apksToRestore;
         if (app.getSplitSourceDirs() == null) {
@@ -292,7 +295,7 @@ public class RestoreAppAction extends BaseAppAction {
         }
     }
 
-    public void restoreData(AppInfo app) throws RestoreFailedException, Crypto.CryptoSetupException, PackageManager.NameNotFoundException {
+    public void restoreData(AppInfoV2 app, BackupProperties backupProperties) throws RestoreFailedException, Crypto.CryptoSetupException, PackageManager.NameNotFoundException {
         // using fresh info from the package manager
         // AppInfo object has outdated, wrong data from the LogFile
         // example: /mnt/expand/86e4a97c-661b-4611-971a-b66b093be72e/user/0/com.supercell.clashofclans
@@ -302,7 +305,7 @@ public class RestoreAppAction extends BaseAppAction {
         this.genericRestoreData(
                 BaseAppAction.BACKUP_DIR_DATA,
                 app,
-                this.getDataBackupFolder(app),
+                this.getDataBackupFile(app),
                 new File(applicationInfo.dataDir),  // refreshed info used here
                 true,
                 RestoreCommand.MOVE
@@ -314,7 +317,7 @@ public class RestoreAppAction extends BaseAppAction {
         );
     }
 
-    public void restoreExternalData(AppInfo app) throws RestoreFailedException, Crypto.CryptoSetupException {
+    public void restoreExternalData(AppInfoV2 app, BackupProperties backupProperties) throws RestoreFailedException, Crypto.CryptoSetupException {
         this.genericRestoreData(
                 BaseAppAction.BACKUP_DIR_EXTERNAL_FILES,
                 app,
@@ -336,7 +339,7 @@ public class RestoreAppAction extends BaseAppAction {
         );
     }
 
-    public void restoreDeviceProtectedData(AppInfo app) throws RestoreFailedException, Crypto.CryptoSetupException, PackageManager.NameNotFoundException {
+    public void restoreDeviceProtectedData(AppInfoV2 app, BackupProperties backupProperties ) throws RestoreFailedException, Crypto.CryptoSetupException, PackageManager.NameNotFoundException {
         // see restoreData for reason why this line in here
         ApplicationInfo applicationInfo = this.getContext().getPackageManager().getApplicationInfo(app.getPackageName(), 0);
         this.genericRestoreData(
