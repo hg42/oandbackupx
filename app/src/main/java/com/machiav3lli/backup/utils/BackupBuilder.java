@@ -88,4 +88,11 @@ public class BackupBuilder {
                         this.hasObbData, this.cipherType),
                 this.backupPath);
     }
+
+    public BackupProperties createBackupProperties(){
+        return new BackupProperties(this.backupPath.getUri(),
+                this.appinfo, this.backupDate, this.hasApk, this.hasAppData,
+                this.hasDevicesProtectedData, this.hasExternalData,
+                this.hasObbData, this.cipherType);
+    }
 }

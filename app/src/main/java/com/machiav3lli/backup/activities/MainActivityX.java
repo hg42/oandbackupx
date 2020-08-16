@@ -44,7 +44,6 @@ import com.machiav3lli.backup.databinding.ActivityMainXBinding;
 import com.machiav3lli.backup.dialogs.BatchConfirmDialog;
 import com.machiav3lli.backup.fragments.AppSheet;
 import com.machiav3lli.backup.fragments.SortFilterSheet;
-import com.machiav3lli.backup.handler.AppInfoHelper;
 import com.machiav3lli.backup.handler.BackendController;
 import com.machiav3lli.backup.handler.BackupRestoreHelper;
 import com.machiav3lli.backup.handler.HandleMessages;
@@ -74,6 +73,8 @@ import java.util.stream.Collectors;
 
 public class MainActivityX extends BaseActivity implements BatchConfirmDialog.ConfirmListener {
     private static final String TAG = Constants.classTag(".MainActivityNeo");
+    private static final int BATCH_REQUEST = 1;
+    private static List<AppInfoV2> originalList;
     private static ShellHandler shellHandler;
 
     static {
@@ -107,6 +108,7 @@ public class MainActivityX extends BaseActivity implements BatchConfirmDialog.Co
     private SortFilterSheet sheetSortFilter;
     private AppSheet sheetApp;
     private SearchViewController searchViewController;
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {

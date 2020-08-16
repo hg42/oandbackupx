@@ -185,7 +185,7 @@ public class AppInfoV2 {
         return this.packageInfo.applicationInfo.deviceProtectedDataDir;
     }
 
-    public String getExternalDataDir() {
+    public String getExternalDataDir(){
         // Uses the context to get own external data directory
         // e.g. /storage/emulated/0/Android/data/com.machiav3lli.backup/files
         // Goes to the parent two times to the leave own directory
@@ -195,8 +195,7 @@ public class AppInfoV2 {
         // package name and has a prefix or a suffix to use it.
         return new File(externalFilesPath, new File(this.getDataDir()).getName()).getAbsolutePath();
     }
-
-    public String getObbFilesDir() {
+    public String getObbFilesDir(){
         // Uses the context to get own obb data directory
         // e.g. /storage/emulated/0/Android/obb/com.machiav3lli.backup
         // Goes to the parent two times to the leave own directory

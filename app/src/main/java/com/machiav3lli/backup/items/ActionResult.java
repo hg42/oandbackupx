@@ -32,15 +32,15 @@ public class ActionResult {
      * Backup item for either a newly created backup or the original item of the restored backup.
      * Can be null, if succeeded is set to false
      */
-    public final BackupItem backupItem;
+    public final BackupProperties backupProperties;
     public final boolean succeeded;
 
-    public ActionResult(AppInfoV2 app, BackupItem backupItem, @NotNull String message, boolean succeeded) {
+    public ActionResult(AppInfoV2 app, BackupProperties backupProperties, @NotNull String message, boolean succeeded) {
         this.occurrence = LocalDateTime.now();
         this.app = app;
         this.succeeded = succeeded;
         this.message = message;
-        this.backupItem = backupItem;
+        this.backupProperties = backupProperties;
     }
 
     public String getMessage() {

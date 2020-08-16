@@ -44,6 +44,7 @@ import com.machiav3lli.backup.handler.HandleMessages;
 import com.machiav3lli.backup.handler.NotificationHelper;
 import com.machiav3lli.backup.handler.ShellCommands;
 import com.machiav3lli.backup.items.AppInfo;
+import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.PrefUtils;
 
@@ -176,14 +177,14 @@ public class PrefsFragment extends PreferenceFragmentCompat {
     }
 
     private boolean onClickBatchDelete() {
-        final ArrayList<AppInfo> deleteList = new ArrayList<>();
+        final ArrayList<AppInfoV2> deleteList = new ArrayList<>();
         StringBuilder message = new StringBuilder();
-        final ArrayList<AppInfo> appInfoList = new ArrayList<>(MainActivityX.getAppsList());
+        final ArrayList<AppInfoV2> appInfoList = new ArrayList<>(MainActivityX.getAppsList());
         if (!appInfoList.isEmpty()) {
-            for (AppInfo appInfo : appInfoList) {
+            for (AppInfoV2 appInfo : appInfoList) {
                 if (!appInfo.isInstalled()) {
                     deleteList.add(appInfo);
-                    message.append(appInfo.getLabel()).append("\n");
+                    message.append(appInfo.getAppInfo().getPackageLabel()).append("\n");
                 }
             }
         }
@@ -240,13 +241,14 @@ public class PrefsFragment extends PreferenceFragmentCompat {
         requireActivity().setResult(RESULT_OK, result);
     }
 
-    public void deleteBackups(List<AppInfo> deleteList) {
+    public void deleteBackups(List<AppInfoV2> deleteList) {
         handleMessages.showMessage(getString(R.string.batchDeleteMessage), "");
-        for (AppInfo appInfo : deleteList) {
+        for (AppInfoV2 appInfo : deleteList) {
             if (backupDir != null) {
-                handleMessages.changeMessage(getString(R.string.batchDeleteMessage), appInfo.getLabel());
-                Log.i(TAG, "deleting backup of " + appInfo.getLabel());
+                handleMessages.changeMessage(getString(R.string.batchDeleteMessage), appInfo.getAppInfo().getPackageLabel());
+                Log.i(TAG, "deleting backup of " + appInfo.getAppInfo().getPackageLabel());
                 File backupSubDir = new File(backupDir, appInfo.getPackageName());
+                // Todo: This does not work. It must use SAF
                 ShellCommands.deleteBackup(backupSubDir);
             } else {
                 Log.e(TAG, "PrefsActivity.deleteBackups: backupDir null");

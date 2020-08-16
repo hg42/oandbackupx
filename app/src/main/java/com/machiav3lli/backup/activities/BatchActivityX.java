@@ -70,7 +70,7 @@ public class BatchActivityX extends BaseActivity
     private SortFilterSheet sheetSortFilter;
     private ItemAdapter<BatchItemX> itemAdapter;
     private FastAdapter<BatchItemX> fastAdapter;
-    private List<AppInfo> originalList = MainActivityX.getOriginalList();
+    private List<AppInfoV2> originalList = MainActivityX.getOriginalList();
     private ArrayList<String> checkedList = new ArrayList<>();
     private HandleMessages handleMessages;
     private SharedPreferences prefs;
@@ -101,11 +101,12 @@ public class BatchActivityX extends BaseActivity
         }
 
         String backupDirPath = FileUtils.getBackupDirectoryPath(this);
-        backupDir = FileUtils.createBackupDir(this, backupDirPath);
-        if (originalList == null || originalList.isEmpty())
-            originalList = AppInfoHelper.getPackageInfo(this, backupDir, true,
-                    prefs.getBoolean(Constants.PREFS_ENABLESPECIALBACKUPS, true));
-
+        //this.backupDir = FileUtils.createBackupDir(this, backupDirPath);
+        if (this.originalList.isEmpty()) {
+            this.originalList = BackendController.getApplicationList(this);
+            //originalList = AppInfoHelper.getPackageInfo(this, backupDir, true,
+            //        prefs.getBoolean(Constants.PREFS_ENABLESPECIALBACKUPS, true));
+        }
         binding.radioBoth.setChecked(true);
 
         binding.refreshLayout.setColorSchemeColors(getResources().getColor(R.color.app_accent, getTheme()));
@@ -247,7 +248,7 @@ public class BatchActivityX extends BaseActivity
                     .map(ActionResult::getMessage)
                     .filter(msg -> !msg.isEmpty())
                     .collect(Collectors.joining("\n"));
-            ActionResult overAllResult = new ActionResult(null, errors, results.parallelStream().anyMatch(ar -> ar.succeeded));
+            ActionResult overAllResult = new ActionResult(null, null, errors, results.parallelStream().anyMatch(ar -> ar.succeeded));
 
             // Update the notification
             String msg = this.backupBoolean ? this.getString(R.string.batchbackup) : this.getString(R.string.batchrestore);
@@ -283,9 +284,11 @@ public class BatchActivityX extends BaseActivity
     @Override
     protected void onPause() {
         super.onPause();
-        checkedList = new ArrayList<>();
-        for (BatchItemX item : itemAdapter.getAdapterItems()) {
-            if (item.getApp().isChecked()) checkedList.add(item.getApp().getPackageName());
+        this.checkedList = new ArrayList<>();
+        for (BatchItemX item : this.itemAdapter.getAdapterItems()) {
+            if (item.isChecked()) {
+                this.checkedList.add(item.getApp().getPackageName());
+            }
         }
     }
 
@@ -318,13 +321,13 @@ public class BatchActivityX extends BaseActivity
             binding.cbAll.setChecked(false);
             List<AppInfoV2> applicationList = BackendController.getApplicationList(this.getApplicationContext());
             ArrayList<BatchItemX> list = new ArrayList<>();
-            if(this.backupBoolean) {
+            if (this.backupBoolean) {
                 for (AppInfoV2 app : applicationList) {
                     if (app.isInstalled()) {
                         list.add(new BatchItemX(app));
                     }
                 }
-            }else{
+            } else {
                 list = applicationList.stream().map(BatchItemX::new).collect(Collectors.toCollection(ArrayList::new));
             }
             ArrayList<BatchItemX> finalList = list;
@@ -364,24 +367,28 @@ public class BatchActivityX extends BaseActivity
         }).start();
     }
 
-    private ArrayList<BatchItemX> createItemsList(ArrayList<AppInfo> filteredList, boolean resume) {
+    private ArrayList<BatchItemX> createItemsList(ArrayList<AppInfoV2> filteredList, boolean resume) {
         ArrayList<BatchItemX> list = new ArrayList<>();
         if (!filteredList.isEmpty()) {
-            for (AppInfo app : filteredList) {
-                if (resume && checkedList.contains(app.getPackageName())) app.setChecked(true);
-                if ((backupBoolean && app.isInstalled())
-                        || (!backupBoolean && app.getBackupMode() != AppInfo.MODE_UNSET))
-                    list.add(new BatchItemX(app));
+            for (AppInfoV2 app : filteredList) {
+                BatchItemX item = new BatchItemX(app);
+                if (resume && this.checkedList.contains(app.getPackageName())) {
+                    item.setChecked(true);
+                }
+                if (this.backupBoolean ? app.isInstalled() : app.hasBackups()) {
+                    list.add(item);
+                }
             }
         }
         return list;
     }
 
-    private void fillItemsList(ArrayList<BatchItemX> list) {
-        for (AppInfo app : originalList) {
-            if ((backupBoolean && app.isInstalled())
-                    || (!backupBoolean && app.getBackupMode() != AppInfo.MODE_UNSET))
-                list.add(new BatchItemX(app));
+    private void fillItemsList(ArrayList<AppInfoV2> list) {
+        for (AppInfoV2 app : this.originalList) {
+            if (this.backupBoolean ? app.isInstalled() : app.hasBackups()) {
+                list.add(app);
+                //list.add(new BatchItemX(app));
+            }
         }
         SortFilterManager.saveFilterPreferences(this, new SortFilterModel());
     }

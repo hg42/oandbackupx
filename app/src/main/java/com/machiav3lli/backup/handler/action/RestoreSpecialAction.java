@@ -58,7 +58,7 @@ public class RestoreSpecialAction extends RestoreAppAction {
     @Override
     public void restoreData(AppInfo app) throws RestoreFailedException, Crypto.CryptoSetupException {
         Log.i(TAG, String.format("%s: Restore special data", app));
-        File backupDirectory = this.getDataBackupFolder(app);
+        File backupDirectory = this.getDataBackupFile(app);
         boolean isEncrypted = PrefUtils.isEncryptionEnabled(this.getContext());
         File archiveFile = this.getBackupArchive(app, BaseAppAction.BACKUP_DIR_DATA, isEncrypted);
         try {
@@ -85,7 +85,7 @@ public class RestoreSpecialAction extends RestoreAppAction {
             for (File restoreFile : expectedFiles) {
                 commands.add(this.prependUtilbox(String.format(
                         "cp -RLp \"%s\" \"%s\"",
-                        new File(this.getDataBackupFolder(app), restoreFile.getName()),
+                        new File(this.getDataBackupFile(app), restoreFile.getName()),
                         restoreFile)));
             }
             String command = String.join(" && ", commands);
