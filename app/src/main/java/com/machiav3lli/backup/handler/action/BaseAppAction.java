@@ -57,12 +57,6 @@ public abstract class BaseAppAction {
         return err.get(err.size() - 1);
     }
 
-    public ActionResult run(AppInfoV2 app) {
-        return this.run(app, AppInfo.MODE_BOTH);
-    }
-
-    public abstract ActionResult run(AppInfoV2 app, int backupMode);
-
     protected ShellHandler getShell() {
         return this.shell;
     }

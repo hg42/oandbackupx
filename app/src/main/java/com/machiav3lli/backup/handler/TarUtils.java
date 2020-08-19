@@ -21,6 +21,7 @@ import android.system.ErrnoException;
 import android.system.Os;
 
 import com.topjohnwu.superuser.io.SuFileInputStream;
+import com.topjohnwu.superuser.io.SuFileOutputStream;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -110,6 +111,33 @@ public final class TarUtils {
                     break;
                 case SOCKET:
                     throw new NotImplementedError("It does not make sense to backup sockets");
+            }
+        }
+    }
+
+    public static void suUncompressTo(TarArchiveInputStream archive, String targetDir) throws IOException, ShellHandler.ShellCommandFailedException {
+        TarArchiveEntry tarEntry;
+        while ((tarEntry = archive.getNextTarEntry()) != null) {
+            final File file = new File(targetDir, tarEntry.getName());
+            if (tarEntry.isDirectory()) {
+                ShellHandler.runAsRoot(String.format("mkdir \"%s\"", file.getAbsolutePath()));
+                TarUtils.suUncompressTo(archive, new File(targetDir, file.getName()).getAbsolutePath());
+            } else if (tarEntry.isFile()){
+                try (SuFileOutputStream fos = new SuFileOutputStream(new File(targetDir, tarEntry.getName()))) {
+                    IOUtils.copy(archive, fos);
+                }
+            } else if (tarEntry.isSymbolicLink()) {
+                ShellHandler.runAsRoot(
+                        String.format(
+                                "cd \"%s\" && ln -s \"%s\" \"%s\"; cd -", targetDir, file.getAbsolutePath(), tarEntry.getLinkName()
+                        ));
+            } else if(tarEntry.isFIFO()){
+                ShellHandler.runAsRoot(
+                        String.format(
+                                "cd \"%s\" && mkfifo \"%s\"; cd -", targetDir, file.getAbsolutePath()
+                        ));
+            }else{
+                throw new NotImplementedError("Cannot restore file type");
             }
         }
     }

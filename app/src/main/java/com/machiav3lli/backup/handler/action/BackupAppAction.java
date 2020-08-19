@@ -30,7 +30,6 @@ import com.machiav3lli.backup.handler.TarUtils;
 import com.machiav3lli.backup.items.ActionResult;
 import com.machiav3lli.backup.items.AppInfo;
 import com.machiav3lli.backup.items.AppInfoV2;
-import com.machiav3lli.backup.items.BackupItem;
 import com.machiav3lli.backup.items.BackupProperties;
 import com.machiav3lli.backup.utils.BackupBuilder;
 import com.machiav3lli.backup.utils.DocumentHelper;
@@ -41,7 +40,6 @@ import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -56,7 +54,6 @@ public class BackupAppAction extends BaseAppAction {
         super(context, shell);
     }
 
-    @Override
     public ActionResult run(AppInfoV2 app, int backupMode) {
         Log.i(BackupAppAction.TAG, String.format("Backing up: %s [%s]", app.getPackageName(), app.getAppInfo().getPackageLabel()));
         DocumentFile appBackupRoot = app.getBackupDir(true);
@@ -120,7 +117,7 @@ public class BackupAppAction extends BaseAppAction {
     protected void copyToBackupArchive(Uri backupInstanceDir, String what, List<ShellHandler.FileInfo> allFilesToBackup) throws IOException {
         DocumentFile backupInstance = DocumentFile.fromTreeUri(this.getContext(), backupInstanceDir);
         DocumentFile backupDir = backupInstance.createDirectory(what);
-        DocumentHelper.suRecursiveCopyFile(this.getContext(), allFilesToBackup, backupDir.getUri());
+        DocumentHelper.suRecursiveCopyFileToDocument(this.getContext(), allFilesToBackup, backupDir.getUri());
     }
 
     protected void backupPackage(AppInfoV2 app, DocumentFile backupInstanceDir) throws BackupAppAction.BackupFailedException {
@@ -144,7 +141,7 @@ public class BackupAppAction extends BaseAppAction {
 
         try {
             for (String apk : apksToBackup) {
-                DocumentHelper.suCopyFile(this.getContext().getContentResolver(), apk, backupInstanceDir);
+                DocumentHelper.suCopyFileToDocument(this.getContext().getContentResolver(), apk, backupInstanceDir);
             }
         } catch (IOException e) {
             Log.e(BackupAppAction.TAG, String.format("%s: Backup APKs failed: %s", app, e));
