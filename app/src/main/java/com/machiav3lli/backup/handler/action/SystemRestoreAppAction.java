@@ -18,14 +18,29 @@
 package com.machiav3lli.backup.handler.action;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
+
+import androidx.documentfile.provider.DocumentFile;
 
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.handler.ShellHandler;
 import com.machiav3lli.backup.items.AppInfo;
+import com.machiav3lli.backup.items.BackupProperties;
+import com.machiav3lli.backup.utils.DocumentHelper;
 
+import org.apache.commons.io.IOUtils;
+
+import java.io.BufferedWriter;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public class SystemRestoreAppAction extends RestoreAppAction {
     private static final String TAG = Constants.classTag(".SystemRestoreAppAction");
@@ -35,10 +50,27 @@ public class SystemRestoreAppAction extends RestoreAppAction {
     }
 
     @Override
-    public void restorePackage(AppInfo app) throws RestoreFailedException {
-        File apkTargetPath = new File(app.getLogInfo().getSourceDir());
+    public void restorePackage(Uri backupLocation, BackupProperties backupProperties) throws RestoreFailedException {
+        DocumentFile backupDir = DocumentFile.fromTreeUri(this.getContext(), backupLocation);
+
+        File apkTargetPath = new File(backupProperties.getSourceDir());
         File appDir = apkTargetPath.getParentFile().getAbsoluteFile();
-        File apkInBackup = new File(this.getAppBackupFolder(app), apkTargetPath.getName());
+        Uri apkLocation = backupLocation.buildUpon().appendPath(apkTargetPath.getName()).build();
+        // Writing the apk to a temporary location to get it out of the magic storage to a local location
+        // that can be accessed with shell commands.
+        File tempPath = new File(this.getContext().getCacheDir(), apkTargetPath.getName());
+
+        try {
+            InputStream inputStream = this.getContext().getContentResolver().openInputStream(apkLocation);
+            try (OutputStream outputStream = new FileOutputStream(tempPath)) {
+                IOUtils.copy(inputStream, outputStream);
+            }
+        } catch (FileNotFoundException e) {
+            throw new RestoreFailedException("Could not find main apk in backup", e);
+        } catch (IOException e) {
+            throw new RestoreFailedException("Could extract main apk file to temporary location", e);
+        }
+
         String mountPoint = "/";
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             // Android versions prior Android 10 use /system
@@ -54,15 +86,17 @@ public class SystemRestoreAppAction extends RestoreAppAction {
                 // with touch, a reboot is not necessary after restoring system apps
                 // maybe use MediaScannerConnection.scanFile like CommandHelper from CyanogenMod FileManager
                 this.prependUtilbox(String.format("touch %s", apkTargetPath)) + " && " +
-                this.prependUtilbox(String.format("cp \"%s\" \"%s\"", apkInBackup, apkTargetPath)) + " && " +
+                this.prependUtilbox(String.format("mv \"%s\" \"%s\"", tempPath, apkTargetPath)) + " && " +
                 this.prependUtilbox(String.format("chmod 644 \"%s\"", apkTargetPath)) +
                 String.format("); mount -o remount,ro %s", mountPoint);
         try {
             ShellHandler.runAsRoot(command);
         } catch (ShellHandler.ShellCommandFailedException e) {
             String error = BaseAppAction.extractErrorMessage(e.getShellResult());
-            Log.e(TAG, String.format("%s: Restore System apk failed: %s", app, error));
+            Log.e(SystemRestoreAppAction.TAG, String.format("Restore System apk failed: %s", error));
             throw new RestoreFailedException(error, e);
+        } finally {
+            tempPath.delete();
         }
     }
 }

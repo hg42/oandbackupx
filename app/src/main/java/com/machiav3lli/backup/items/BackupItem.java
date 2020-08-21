@@ -1,6 +1,7 @@
 package com.machiav3lli.backup.items;
 
 import android.content.Context;
+import android.net.Uri;
 
 import androidx.documentfile.provider.DocumentFile;
 
@@ -52,6 +53,10 @@ public class BackupItem {
                     BackupProperties.PROPERTIES_FILENAME,
                     backupInstance.getUri()), e);
         }
+    }
+
+    public Uri getBackupLocation(){
+        return this.backupInstance.getUri();
     }
 
     protected static class BrokenBackupException extends Exception {

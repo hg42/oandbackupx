@@ -3,7 +3,6 @@ package com.machiav3lli.backup.items;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -11,7 +10,6 @@ import android.os.Parcelable;
 import com.google.gson.annotations.SerializedName;
 
 import java.io.File;
-import java.text.ParseException;
 import java.util.Objects;
 
 public class AppMetaInfo implements Parcelable {
@@ -30,6 +28,12 @@ public class AppMetaInfo implements Parcelable {
 
     @SerializedName("profileId")
     private int profileId;
+
+    @SerializedName("sourceDir")
+    private String sourceDir;
+
+    @SerializedName("splitSourceDirs")
+    private String[] splitSourceDirs;
 
     @SerializedName("isSystem")
     private boolean isSystem;
@@ -53,17 +57,22 @@ public class AppMetaInfo implements Parcelable {
             // Android System "App" points to /data/system
             this.profileId = -1;
         }
+        this.sourceDir = pi.applicationInfo.sourceDir;
+        this.splitSourceDirs = pi.applicationInfo.splitSourceDirs;
         // Boolean arithmetic to check if FLAG_SYSTEM is set
         this.isSystem = (pi.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != ApplicationInfo.FLAG_SYSTEM;
         this.applicationIcon = context.getPackageManager().getApplicationIcon(pi.applicationInfo);
     }
 
-    public AppMetaInfo(String packageName, String packageLabel, String versionName, int versionCode, int profileId, boolean isSystem) {
+    public AppMetaInfo(String packageName, String packageLabel, String versionName, int versionCode,
+                       int profileId, String sourceDir, String[] splitSourceDirs, boolean isSystem) {
         this.packageName = packageName;
         this.packageLabel = packageLabel;
         this.versionName = versionName;
         this.versionCode = versionCode;
         this.profileId = profileId;
+        this.sourceDir = sourceDir;
+        this.splitSourceDirs = splitSourceDirs;
         this.isSystem = isSystem;
     }
 
@@ -73,17 +82,21 @@ public class AppMetaInfo implements Parcelable {
         this.versionName = in.readString();
         this.versionCode = in.readInt();
         this.profileId = in.readInt();
+        this.sourceDir = in.readString();
+        this.splitSourceDirs = in.createStringArray();
         this.isSystem = in.readByte() != 0;
     }
 
     @Override
-    public void writeToParcel(Parcel dest, int flags) {
-        dest.writeString(this.packageName);
-        dest.writeString(this.packageLabel);
-        dest.writeString(this.versionName);
-        dest.writeInt(this.versionCode);
-        dest.writeInt(this.profileId);
-        dest.writeByte((byte) (this.isSystem ? 1 : 0));
+    public void writeToParcel(Parcel parcel, int flags) {
+        parcel.writeString(this.packageName);
+        parcel.writeString(this.packageLabel);
+        parcel.writeString(this.versionName);
+        parcel.writeInt(this.versionCode);
+        parcel.writeInt(this.profileId);
+        parcel.writeString(this.sourceDir);
+        parcel.writeStringArray(this.splitSourceDirs);
+        parcel.writeByte((byte) (this.isSystem ? 1 : 0));
     }
 
     @Override
@@ -123,11 +136,21 @@ public class AppMetaInfo implements Parcelable {
         return this.profileId;
     }
 
+    public String getSourceDir() {
+        return this.sourceDir;
+    }
+
+    public String[] getSplitSourceDirs() {
+        return this.getSplitSourceDirs();
+    }
+
     public boolean isSystem() {
         return this.isSystem;
     }
 
-    public boolean isSpecial() { return false; }
+    public boolean isSpecial() {
+        return false;
+    }
 
     public boolean hasIcon() {
         return this.applicationIcon != null;

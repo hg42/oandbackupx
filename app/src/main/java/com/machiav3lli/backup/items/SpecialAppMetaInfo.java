@@ -11,7 +11,7 @@ public class SpecialAppMetaInfo extends AppMetaInfo implements Parcelable {
     String[] files;
 
     public SpecialAppMetaInfo(String packageName, String label, String versionName, int versionCode, String[] fileList){
-        super(packageName, label, versionName, versionCode, 0, true);
+        super(packageName, label, versionName, versionCode, 0, null, null, true);
         this.files = fileList;
     }
 

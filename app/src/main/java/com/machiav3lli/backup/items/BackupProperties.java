@@ -59,7 +59,8 @@ public class BackupProperties extends AppMetaInfo implements Parcelable {
                             boolean hasApk, boolean hasAppData, boolean hasDevicesProtectedData,
                             boolean hasExternalData, boolean hasObbData, String cipherType) {
         super(base.getPackageName(), base.getPackageLabel(), base.getVersionName(),
-                base.getVersionCode(), base.getProfileId(), base.isSystem());
+                base.getVersionCode(), base.getProfileId(), base.getSourceDir(),
+                base.getSplitSourceDirs(), base.isSystem());
         this.backupLocation = backupLocation;
         this.backupDate = backupDate;
         this.hasApk = hasApk;
@@ -71,10 +72,11 @@ public class BackupProperties extends AppMetaInfo implements Parcelable {
     }
 
     public BackupProperties(Uri backupLocation, String packageName, String packageLabel, String versionName,
-                            int versionCode, int profileId, boolean isSystem, LocalDateTime backupDate,
+                            int versionCode, int profileId, String sourceDir, String[] splitSourceDirs,
+                            boolean isSystem, LocalDateTime backupDate,
                             boolean hasApk, boolean hasAppData, boolean hasDevicesProtectedData,
                             boolean hasExternalData, boolean hasObbData, String cipherType) {
-        super(packageName, packageLabel, versionName, versionCode, profileId, isSystem);
+        super(packageName, packageLabel, versionName, versionCode, profileId, sourceDir, splitSourceDirs, isSystem);
         this.backupLocation = backupLocation;
         this.backupDate = backupDate;
         this.hasApk = hasApk;
