@@ -65,26 +65,6 @@ public abstract class BaseAppAction {
         return new File(FileUtils.getBackupDirectoryPath(this.context));
     }
 
-    public File getAppBackupFolder(AppInfo app) {
-        return new File(this.getBackupFolder(), app.getPackageName());
-    }
-
-    public Uri getDataBackupFile(Uri backupInstance) {
-        return backupInstance.buildUpon().appendPath(BaseAppAction.BACKUP_DIR_DATA).build();
-    }
-
-    public File getExternalFilesBackupFolder(AppInfo app) {
-        return new File(this.getAppBackupFolder(app), BaseAppAction.BACKUP_DIR_EXTERNAL_FILES);
-    }
-
-    public File getObbBackupFolder(AppInfo app) {
-        return new File(this.getAppBackupFolder(app), BaseAppAction.BACKUP_DIR_OBB_FILES);
-    }
-
-    public File getDeviceProtectedFolder(AppInfo app) {
-        return new File(this.getAppBackupFolder(app), BaseAppAction.BACKUP_DIR_DEVICE_PROTECTED_FILES);
-    }
-
     public Uri getBackupArchive(Uri backupInstance, String what, boolean isEncrypted) {
         return backupInstance
                 .buildUpon()

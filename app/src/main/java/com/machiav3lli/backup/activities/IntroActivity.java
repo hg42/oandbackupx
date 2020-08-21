@@ -251,9 +251,7 @@ public class IntroActivity extends BaseActivity {
                     .setDeviceCredentialAllowed(true)
                     .build();
             biometricPrompt.authenticate(promptInfo);
-        } else {
-            binding.permissionsButton.setVisibility(View.GONE);
-            String backupDirPath = FileUtils.getDefaultBackupDirPath(this);
+        } else {binding.permissionsButton.setVisibility(View.GONE);
         // Todo: Replace this with a user query to set the backup path!
         //backupDir = FileUtils.createBackupDir(this, backupDirPath);
         startActivity(new Intent(this, MainActivityX.class));

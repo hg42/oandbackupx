@@ -27,7 +27,6 @@ import com.machiav3lli.backup.handler.HandleMessages;
 import com.machiav3lli.backup.handler.NotificationHelper;
 import com.machiav3lli.backup.handler.ShellHandler;
 import com.machiav3lli.backup.items.ActionResult;
-import com.machiav3lli.backup.items.AppInfo;
 import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.utils.UIUtils;
 
@@ -41,7 +40,6 @@ public abstract class BaseTask extends AsyncTask<Void, Void, Integer> {
     final AppInfoV2 app;
     final WeakReference<HandleMessages> handleMessagesReference;
     final WeakReference<MainActivityX> mainActivityXReference;
-    final File backupDirectory;
     final ShellHandler shellHandler;
     final int mode;
     protected ActionResult result;
@@ -55,10 +53,9 @@ public abstract class BaseTask extends AsyncTask<Void, Void, Integer> {
         this.app = app;
         this.handleMessagesReference = new WeakReference<>(handleMessages);
         this.mainActivityXReference = new WeakReference<>(oAndBackupX);
-        this.backupDirectory = backupDirectory;
         this.shellHandler = shellHandler;
         this.mode = mode;
-        backupRestoreHelper = new BackupRestoreHelper();
+        this.backupRestoreHelper = new BackupRestoreHelper();
     }
 
     @Override

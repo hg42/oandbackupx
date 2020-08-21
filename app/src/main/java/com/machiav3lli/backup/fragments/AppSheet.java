@@ -377,10 +377,15 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
             new BackupTask(this.app, handleMessages, requireMainActivity(), backupDir, MainActivityX.getShellHandlerInstance(), mode).execute();
             requireMainActivity().refreshWithAppSheet();
         } else if (actionType == BackupRestoreHelper.ActionType.RESTORE) {
-            new RestoreTask(this.app, handleMessages, requireMainActivity(), backupDir, MainActivityX.getShellHandlerInstance(), mode).execute();
-            requireMainActivity().refreshWithAppSheet();
-        } else
+            // Latest Backup for now
+            BackupItem selectedBackup = this.app.getLatestBackup();
+            new RestoreTask(this.app, this.handleMessages, this.requireMainActivity(), this.backupDir,
+                    selectedBackup.getBackupProperties(), selectedBackup.getBackupLocation(),
+                    MainActivityX.getShellHandlerInstance(), mode).execute();
+            this.requireMainActivity().refreshWithAppSheet();
+        } else {
             Log.e(TAG, "unknown actionType: " + actionType);
+        }
     }
 
     public void displayDialogEnableDisable(final String packageName, final boolean enable) {

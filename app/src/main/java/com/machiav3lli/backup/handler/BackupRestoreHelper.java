@@ -18,6 +18,7 @@
 package com.machiav3lli.backup.handler;
 
 import android.content.Context;
+import android.net.Uri;
 import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
@@ -65,7 +66,9 @@ public class BackupRestoreHelper {
         return result;
     }
 
-    public ActionResult restore(Context context, AppInfoV2 app, ShellHandler shell, int mode) {
+    public ActionResult restore(
+            Context context, AppInfoV2 app, BackupProperties backupProperties,
+            Uri backupLocation, ShellHandler shell, int mode) {
         RestoreAppAction restoreAction;
         if (app.getAppInfo().isSpecial()) {
             restoreAction = new RestoreSpecialAction(context, shell);
@@ -74,7 +77,7 @@ public class BackupRestoreHelper {
         } else {
             restoreAction = new RestoreAppAction(context, shell);
         }
-        ActionResult result = restoreAction.run(app, mode);
+        ActionResult result = restoreAction.run(app, backupProperties, backupLocation, mode);
         Log.i(BackupRestoreHelper.TAG, String.format("%s: Restore succeeded: %s", app, result.succeeded));
         return result;
     }

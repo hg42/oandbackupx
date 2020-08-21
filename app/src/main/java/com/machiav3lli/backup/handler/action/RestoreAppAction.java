@@ -69,13 +69,13 @@ public class RestoreAppAction extends BaseAppAction {
         try {
             this.killPackage(app.getPackageName());
             if ((backupMode & AppInfo.MODE_APK) == AppInfo.MODE_APK) {
-                this.restorePackage(backupLocation, app.getPackageName());
+                this.restorePackage(backupLocation, backupProperties);
             }
 
             if ((backupMode & AppInfo.MODE_DATA) == AppInfo.MODE_DATA) {
                 this.restoreAllData(app, backupProperties, backupLocation);
             }
-        } catch (RestoreFailedException | Crypto.CryptoSetupException | PackageManager.NameNotFoundException e) {
+        } catch (RestoreFailedException | Crypto.CryptoSetupException e) {
             return new ActionResult(app,
                     null,
                     String.format("%s: %s", e.getClass().getSimpleName(), e.getMessage()),
@@ -114,7 +114,7 @@ public class RestoreAppAction extends BaseAppAction {
         in.close();
     }
 
-    public void restorePackage(Uri backupLocation, final String packageName) throws RestoreFailedException {
+    public void restorePackage(Uri backupLocation, BackupProperties backupProperties) throws RestoreFailedException {
         DocumentFile backupDir = DocumentFile.fromTreeUri(this.getContext(), backupLocation);
 
         DocumentFile baseApk = backupDir.findFile(RestoreAppAction.BASEAPKFILENAME);
@@ -172,36 +172,37 @@ public class RestoreAppAction extends BaseAppAction {
 
         try {
             String command;
-        if (stagingApkPath != null) {
-            // Try it with a staging path. This is usually the way to go.
-            // copy apks to staging dir
-            for (DocumentFile apkDoc : apksToRestore) {
-                DocumentHelper.suCopyFileFromDocument(
-                        this.getContext().getContentResolver(),
-                        apkDoc.getUri(),
-                        new File(stagingApkPath, apkDoc.getName()).getAbsolutePath()
-                );
-            }
-            StringBuilder sb = new StringBuilder();
-            // Install main package
-            sb.append(this.getPackageInstallCommand(new File(stagingApkPath, baseApk.getName())));
-            // If split apk resources exist, install them afterwards (order does not matter)
-            if (splitApksInBackup.length > 0) {
-                for (DocumentFile apk : splitApksInBackup) {
-                    sb.append(" && ").append(this.getPackageInstallCommand(new File(stagingApkPath, apk.getName()), packageName));
+            if (stagingApkPath != null) {
+                // Try it with a staging path. This is usually the way to go.
+                // copy apks to staging dir
+                for (DocumentFile apkDoc : apksToRestore) {
+                    DocumentHelper.suCopyFileFromDocument(
+                            this.getContext().getContentResolver(),
+                            apkDoc.getUri(),
+                            new File(stagingApkPath, apkDoc.getName()).getAbsolutePath()
+                    );
                 }
-            }
+                StringBuilder sb = new StringBuilder();
+                // Install main package
+                sb.append(this.getPackageInstallCommand(new File(stagingApkPath, baseApk.getName())));
+                // If split apk resources exist, install them afterwards (order does not matter)
+                if (splitApksInBackup.length > 0) {
+                    for (DocumentFile apk : splitApksInBackup) {
+                        sb.append(" && ").append(
+                                this.getPackageInstallCommand(new File(stagingApkPath, apk.getName()), backupProperties.getPackageName()));
+                    }
+                }
 
-            // append cleanup command
-            final File finalStagingApkPath = stagingApkPath;
-            sb.append(String.format(" && %s rm %s", this.getShell().getUtilboxPath(),
-                    Arrays.stream(apksToRestore).map(s -> '"' + finalStagingApkPath.getAbsolutePath() + '/' + s.getName() + '"').collect(Collectors.joining(" "))
-            ));
-            command = sb.toString();
-        } else {
-            // no staging path method available. The Android configuration is too special.
-            throw new RestoreFailedException("No or unknown way to install apks. Staging directory not available", null);
-        }
+                // append cleanup command
+                final File finalStagingApkPath = stagingApkPath;
+                sb.append(String.format(" && %s rm %s", this.getShell().getUtilboxPath(),
+                        Arrays.stream(apksToRestore).map(s -> '"' + finalStagingApkPath.getAbsolutePath() + '/' + s.getName() + '"').collect(Collectors.joining(" "))
+                ));
+                command = sb.toString();
+            } else {
+                // no staging path method available. The Android configuration is too special.
+                throw new RestoreFailedException("No or unknown way to install apks. Staging directory not available", null);
+            }
             ShellHandler.runAsRoot(command);
             // Todo: Reload package data; Implement function for it
         } catch (ShellHandler.ShellCommandFailedException e) {
@@ -225,17 +226,21 @@ public class RestoreAppAction extends BaseAppAction {
         }
     }
 
-    private void genericRestoreFromArchive(final Uri archiveUri, final String targetDir, boolean isEncrypted) throws RestoreFailedException, Crypto.CryptoSetupException {
-        try {
-            InputStream inputStream = new BufferedInputStream(this.getContext().getContentResolver().openInputStream(archiveUri));
-            if(isEncrypted){
-                String password = PrefUtils.getDefaultSharedPreferences(this.getContext()).getString(Constants.PREFS_PASSWORD, "");
-                if (!password.isEmpty()) {
-                    Log.d(RestoreAppAction.TAG, "Encryption enabled");
-                    inputStream = Crypto.decryptStream(inputStream, password, PrefUtils.getCryptoSalt(this.getContext()));
-                }
-                TarUtils.suUncompressTo(new TarArchiveInputStream(new GzipCompressorInputStream(inputStream)), targetDir);
+    protected TarArchiveInputStream openArchiveFile(Uri archiveUri, boolean isEncrypted) throws Crypto.CryptoSetupException, IOException, FileNotFoundException {
+        InputStream inputStream = new BufferedInputStream(this.getContext().getContentResolver().openInputStream(archiveUri));
+        if (isEncrypted) {
+            String password = PrefUtils.getDefaultSharedPreferences(this.getContext()).getString(Constants.PREFS_PASSWORD, "");
+            if (!password.isEmpty()) {
+                Log.d(RestoreAppAction.TAG, "Decryption enabled");
+                inputStream = Crypto.decryptStream(inputStream, password, PrefUtils.getCryptoSalt(this.getContext()));
             }
+        }
+        return new TarArchiveInputStream(new GzipCompressorInputStream(inputStream));
+    }
+
+    private void genericRestoreFromArchive(final Uri archiveUri, final String targetDir, boolean isEncrypted) throws RestoreFailedException, Crypto.CryptoSetupException {
+        try (TarArchiveInputStream inputStream = this.openArchiveFile(archiveUri, isEncrypted)) {
+            TarUtils.suUncompressTo(inputStream, targetDir);
         } catch (FileNotFoundException e) {
             throw new RestoreFailedException("Backup archive at " + archiveUri + " is missing", e);
         } catch (IOException e) {
