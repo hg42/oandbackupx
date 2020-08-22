@@ -17,10 +17,12 @@
  */
 package com.machiav3lli.backup.activities;
 
+import android.app.Activity;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -40,6 +42,7 @@ import com.machiav3lli.backup.R;
 import com.machiav3lli.backup.databinding.ActivityIntroBinding;
 import com.machiav3lli.backup.handler.HandleMessages;
 import com.machiav3lli.backup.handler.ShellHandler;
+import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.LogUtils;
 import com.machiav3lli.backup.utils.PrefUtils;
 import com.machiav3lli.backup.utils.UIUtils;
@@ -57,6 +60,7 @@ public class IntroActivity extends BaseActivity {
     private static final int READ_PERMISSION = 2;
     private static final int WRITE_PERMISSION = 3;
     private static final int STATS_PERMISSION = 4;
+    private static final int BACKUP_DIR = 5;
     private static ShellHandler shellHandler;
     private HandleMessages handleMessages;
     private ActivityIntroBinding binding;
@@ -88,7 +92,7 @@ public class IntroActivity extends BaseActivity {
         LogUtils.logDeviceInfo(this, TAG);
         handleMessages = new HandleMessages(this);
 
-        if (checkStoragePermissions() && checkUsageStatsPermission(this)) {
+        if (this.ensureBackupDirectory() && checkStoragePermissions() && checkUsageStatsPermission(this)) {
             binding.permissionsButton.setVisibility(View.GONE);
             if (this.checkResources()) {
                 this.launchMainActivity();
@@ -145,6 +149,31 @@ public class IntroActivity extends BaseActivity {
             ActivityCompat.requestPermissions(this, new String[]{WRITE_EXTERNAL_STORAGE}, WRITE_PERMISSION);
     }
 
+
+    private boolean ensureBackupDirectory(){
+        // Check if a backup directory is defined, otherwise ask the user to define it
+        // This also grants access to it, otherwise Android will tell the app, the directory would
+        // not exist and nothing would work
+
+        try{
+            Uri backupDir = FileUtils.getBackupDir(this);
+            Log.d(IntroActivity.TAG, "Using backup location: " + backupDir);
+            return true;
+        } catch (FileUtils.BackupLocationNotAccessibleException | FileUtils.BackupLocationNotSetException e) {
+            final String message;
+            if(e instanceof FileUtils.BackupLocationNotSetException){
+                message = "Backup location not configured. Please select a location where a backup directory will be created.";
+            }else{
+                message = "Backup location is not accessible. Please select a new location where a backup directory will be created.";
+            }
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            this.startActivityForResult(intent, IntroActivity.BACKUP_DIR);
+            return false;
+        }
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -176,7 +205,14 @@ public class IntroActivity extends BaseActivity {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == STATS_PERMISSION) {
+        if (requestCode == STATS_PERMISSION || requestCode == BACKUP_DIR) {
+            if (requestCode == BACKUP_DIR) {
+                Uri uri = data.getData();
+                if (resultCode == Activity.RESULT_OK) {
+                    PrefUtils.setStorageRootDir(this, uri.toString());
+                }
+                this.ensureBackupDirectory();
+            }
             if (checkUsageStatsPermission(this)) {
                 if (checkStoragePermissions()) {
                     if (this.checkResources()) {
@@ -190,7 +226,10 @@ public class IntroActivity extends BaseActivity {
                 } else {
                     getStoragePermission();
                 }
-            } else {
+            } else if(requestCode == STATS_PERMISSION) {
+                // On initial setup, the app asks for the backup directory first
+                // This causes the app to go through this path if it's not processing the permission update
+                // Super dirty, but works for now
                 finishAffinity();
             }
         }

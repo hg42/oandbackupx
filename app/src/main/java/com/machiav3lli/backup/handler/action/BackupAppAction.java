@@ -56,8 +56,8 @@ public class BackupAppAction extends BaseAppAction {
 
     public ActionResult run(AppInfoV2 app, int backupMode) {
         Log.i(BackupAppAction.TAG, String.format("Backing up: %s [%s]", app.getPackageName(), app.getAppInfo().getPackageLabel()));
-        DocumentFile appBackupRoot = app.getBackupDir(true);
-        BackupBuilder backupBuilder = new BackupBuilder(this.getContext(), app.getAppInfo(), appBackupRoot);
+        Uri appBackupRootUri = app.getBackupDir(true);
+        BackupBuilder backupBuilder = new BackupBuilder(this.getContext(), app.getAppInfo(), appBackupRootUri);
         DocumentFile backupDir = backupBuilder.getBackupPath();
 
         try {

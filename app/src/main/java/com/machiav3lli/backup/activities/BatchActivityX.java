@@ -21,6 +21,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.util.Log;
@@ -100,8 +101,6 @@ public class BatchActivityX extends BaseActivity
             UIUtils.reShowMessage(handleMessages, threadId);
         }
 
-        String backupDirPath = FileUtils.getBackupDirectoryPath(this);
-        //this.backupDir = FileUtils.createBackupDir(this, backupDirPath);
         if (this.originalList.isEmpty()) {
             this.originalList = BackendController.getApplicationList(this);
             //originalList = AppInfoHelper.getPackageInfo(this, backupDir, true,
@@ -201,78 +200,76 @@ public class BatchActivityX extends BaseActivity
     }
 
     public void doAction(List<BatchItemX> selectedList) {
-        if (this.backupDir != null) {
-            @SuppressLint("InvalidWakeLockTag") PowerManager.WakeLock wl = this.powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, BatchActivityX.TAG);
-            if (this.prefs.getBoolean("acquireWakelock", true)) {
-                wl.acquire(10 * 60 * 1000L /*10 minutes*/);
-                Log.i(BatchActivityX.TAG, "wakelock acquired");
+        @SuppressLint("InvalidWakeLockTag") PowerManager.WakeLock wl = this.powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, BatchActivityX.TAG);
+        if (this.prefs.getBoolean("acquireWakelock", true)) {
+            wl.acquire(10 * 60 * 1000L /*10 minutes*/);
+            Log.i(BatchActivityX.TAG, "wakelock acquired");
+        }
+        this.changesMade = true;
+        int notificationId = (int) System.currentTimeMillis();
+        int total = selectedList.size();
+        int i = 1;
+        List<ActionResult> results = new ArrayList<>(total);
+        for (BatchItemX item : selectedList) {
+            String message = "(" + i + '/' + total + ')';
+            String title = (this.backupBoolean ? this.getString(R.string.backupProgress) : this.getString(R.string.restoreProgress))
+                    + " (" + i + '/' + total + ')';
+            NotificationHelper.showNotification(this, BatchActivityX.class, notificationId, title, item.getApp().getAppInfo().getPackageLabel(), false);
+            this.handleMessages.setMessage(item.getApp().getAppInfo().getPackageLabel(), message);
+            int mode = AppInfo.MODE_BOTH;
+            if (binding.radioApk.isChecked()) {
+                mode = AppInfo.MODE_APK;
+            } else if (binding.radioData.isChecked()) {
+                mode = AppInfo.MODE_DATA;
             }
-            this.changesMade = true;
-            int notificationId = (int) System.currentTimeMillis();
-            int total = selectedList.size();
-            int i = 1;
-            List<ActionResult> results = new ArrayList<>(total);
-            for (BatchItemX item : selectedList) {
-                String message = "(" + i + '/' + total + ')';
-                String title = (this.backupBoolean ? this.getString(R.string.backupProgress) : this.getString(R.string.restoreProgress))
-                        + " (" + i + '/' + total + ')';
-                NotificationHelper.showNotification(this, BatchActivityX.class, notificationId, title, item.getApp().getAppInfo().getPackageLabel(), false);
-                this.handleMessages.setMessage(item.getApp().getAppInfo().getPackageLabel(), message);
-                int mode = AppInfo.MODE_BOTH;
-                if (binding.radioApk.isChecked()) {
-                    mode = AppInfo.MODE_APK;
-                } else if (binding.radioData.isChecked()) {
-                    mode = AppInfo.MODE_DATA;
-                }
-                final BackupRestoreHelper backupRestoreHelper = new BackupRestoreHelper();
-                ActionResult result = null;
-                // Todo: Renable Batch processing lol
+            final BackupRestoreHelper backupRestoreHelper = new BackupRestoreHelper();
+            ActionResult result = null;
+            // Todo: Renable Batch processing lol
                 /*
                 if (this.backupBoolean) {
                     result = backupRestoreHelper.backup(this, MainActivityX.getShellHandlerInstance(), item.getApp(), mode);
                 } else {
                     result = backupRestoreHelper.restore(this, item.getApp(), MainActivityX.getShellHandlerInstance(), mode);
                 }*/
-                results.add(result);
-                i++;
-            }
-            if (this.handleMessages.isShowing()) {
-                this.handleMessages.endMessage();
-            }
-            if (wl.isHeld()) {
-                wl.release();
-                Log.i(BatchActivityX.TAG, "wakelock released");
-            }
-            // Calculate the overall result
-            String errors = results.parallelStream()
-                    .map(ActionResult::getMessage)
-                    .filter(msg -> !msg.isEmpty())
-                    .collect(Collectors.joining("\n"));
-            ActionResult overAllResult = new ActionResult(null, null, errors, results.parallelStream().anyMatch(ar -> ar.succeeded));
-
-            // Update the notification
-            String msg = this.backupBoolean ? this.getString(R.string.batchbackup) : this.getString(R.string.batchrestore);
-            String notificationTitle = overAllResult.succeeded ? this.getString(R.string.batchSuccess) : this.getString(R.string.batchFailure);
-            NotificationHelper.showNotification(this, BatchActivityX.class, notificationId, notificationTitle, msg, true);
-
-            // show results to the user. Add a save button, if logs should be saved to the application log (in case it's too much)
-            UIUtils.showActionResult(this, overAllResult, overAllResult.succeeded ? null : (dialog, which) -> {
-                try (FileWriter fw = new FileWriter(FileUtils.getDefaultLogFilePath(this.getApplicationContext()), true)) {
-                    fw.write(errors);
-                    Toast.makeText(
-                            BatchActivityX.this,
-                            String.format(this.getString(R.string.logfileSavedAt), FileUtils.getDefaultLogFilePath(this.getApplicationContext())),
-                            Toast.LENGTH_LONG).show();
-                } catch (IOException e) {
-                    new AlertDialog.Builder(BatchActivityX.this)
-                            .setTitle(R.string.errorDialogTitle)
-                            .setMessage(e.getLocalizedMessage())
-                            .setPositiveButton(R.string.dialogOK, null)
-                            .show();
-                }
-            });
-            this.refresh(false);
+            results.add(result);
+            i++;
         }
+        if (this.handleMessages.isShowing()) {
+            this.handleMessages.endMessage();
+        }
+        if (wl.isHeld()) {
+            wl.release();
+            Log.i(BatchActivityX.TAG, "wakelock released");
+        }
+        // Calculate the overall result
+        String errors = results.parallelStream()
+                .map(ActionResult::getMessage)
+                .filter(msg -> !msg.isEmpty())
+                .collect(Collectors.joining("\n"));
+        ActionResult overAllResult = new ActionResult(null, null, errors, results.parallelStream().anyMatch(ar -> ar.succeeded));
+
+        // Update the notification
+        String msg = this.backupBoolean ? this.getString(R.string.batchbackup) : this.getString(R.string.batchrestore);
+        String notificationTitle = overAllResult.succeeded ? this.getString(R.string.batchSuccess) : this.getString(R.string.batchFailure);
+        NotificationHelper.showNotification(this, BatchActivityX.class, notificationId, notificationTitle, msg, true);
+
+        // show results to the user. Add a save button, if logs should be saved to the application log (in case it's too much)
+        UIUtils.showActionResult(this, overAllResult, overAllResult.succeeded ? null : (dialog, which) -> {
+            try (FileWriter fw = new FileWriter(FileUtils.getDefaultLogFilePath(this.getApplicationContext()), true)) {
+                fw.write(errors);
+                Toast.makeText(
+                        BatchActivityX.this,
+                        String.format(this.getString(R.string.logfileSavedAt), FileUtils.getDefaultLogFilePath(this.getApplicationContext())),
+                        Toast.LENGTH_LONG).show();
+            } catch (IOException e) {
+                new AlertDialog.Builder(BatchActivityX.this)
+                        .setTitle(R.string.errorDialogTitle)
+                        .setMessage(e.getLocalizedMessage())
+                        .setPositiveButton(R.string.dialogOK, null)
+                        .show();
+            }
+        });
+        this.refresh(false);
     }
 
     @Override

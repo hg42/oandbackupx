@@ -46,7 +46,7 @@ public class AppInfoV2 {
         this.context = context;
         this.metaInfo = metaInfo;
         this.packageName = metaInfo.getPackageName();
-        StorageFile backupDoc = DocumentHelper.getBackupRoot(context).findFile(this.packageName);
+        StorageFile backupDoc = DocumentHelper.getBackupRoot(context).findFile(this.packageName).getUri();
         if (backupDoc != null) {
             this.backupDir = backupDoc.getUri();
             this.backupHistory = AppInfoV2.getBackupHistory(context, this.backupDir);
@@ -59,17 +59,17 @@ public class AppInfoV2 {
         this.context = context;
         this.packageName = packageInfo.packageName;
         this.packageInfo = packageInfo;
-        StorageFile backupDoc = DocumentHelper.getBackupRoot(context).findFile(this.packageName);
+        StorageFile backupDoc = DocumentHelper.getBackupRoot(context).findFile(this.packageName).getUri();
         if (backupDoc != null) {
             this.backupDir = backupDoc.getUri();
         }
     }
 
-    public AppInfoV2(Context context, @NotNull Uri packageBackupRoot) {
+    public AppInfoV2(Context context, @NotNull Uri backupDir) {
         this.context = context;
-        this.backupDir = packageBackupRoot;
-        this.backupHistory = AppInfoV2.getBackupHistory(context, packageBackupRoot);
-        this.packageName = StorageFile.fromUri(context, this.backupDir).getName();
+        this.packageName = backupDir.getLastPathSegment();
+        this.backupDir = backupDir;
+        this.backupHistory = AppInfoV2.getBackupHistory(context, backupDir);
 
         try {
             this.packageInfo = context.getPackageManager().getPackageInfo(this.packageName, 0);
@@ -83,7 +83,7 @@ public class AppInfoV2 {
         }
     }
 
-    public AppInfoV2(Context context, PackageInfo packageInfo, Uri backupRoot) {
+    public AppInfoV2(Context context, PackageInfo packageInfo, Uri backupDir) {
         this.context = context;
         this.packageName = packageInfo.packageName;
         this.packageInfo = packageInfo;

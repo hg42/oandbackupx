@@ -205,13 +205,17 @@ public class PrefsFragment extends PreferenceFragmentCompat {
     }
 
     private boolean launchFragment(Fragment fragment) {
-        requireActivity().getSupportFragmentManager().beginTransaction().replace(R.id.prefsFragment, fragment).addToBackStack(null).commit();
+        requireActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .replace(R.id.prefsFragment, fragment)
+                .addToBackStack(null)
+                .commit();
         return true;
     }
 
     private void setDefaultDir(Context context, String dir) {
-        FileUtils.setBackupDirectoryPath(context, dir);
-        Preference pref = findPreference(Constants.PREFS_PATH_BACKUP_DIRECTORY);
+        PrefUtils.setStorageRootDir(context, dir);
+        Preference pref = this.findPreference(Constants.PREFS_PATH_BACKUP_DIRECTORY);
         assert pref != null;
         pref.setSummary(dir);
     }
@@ -220,15 +224,12 @@ public class PrefsFragment extends PreferenceFragmentCompat {
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == DEFAULT_DIR_CODE && data != null) {
-            Uri uri = data.getData();
-            if (resultCode == Activity.RESULT_OK && uri != null) {
-                String oldDir = FileUtils.getBackupDirectoryPath(requireContext());
-                String newPath = FileUtils.getAbsolutPath(requireContext(), DocumentsContract.buildDocumentUriUsingTree(uri,
-                        DocumentsContract.getTreeDocumentId(uri)));
-                newPath = uri.toString();
-                if (!oldDir.equals(newPath)) {
+            Uri newPath = data.getData();
+            if (resultCode == Activity.RESULT_OK && newPath != null) {
+                String oldDir = PrefUtils.getStorageRootDir(this.requireContext());
+                if (!oldDir.equals(newPath.toString())) {
                     Log.i(TAG, "setting uri " + newPath);
-                    setDefaultDir(requireContext(), newPath);
+                    setDefaultDir(requireContext(), newPath.toString());
                 }
                 com.machiav3lli.backup.handler.BackendController.getAvailableBackups(this.getContext());
             }

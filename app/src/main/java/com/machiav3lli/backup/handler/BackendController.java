@@ -33,7 +33,7 @@ public final class BackendController {
         DocumentFile backupRoot = DocumentHelper.getBackupRoot(context);
         List<PackageInfo> packageInfoList = pm.getInstalledPackages(0);
         List<AppInfoV2> packageList = packageInfoList.stream()
-                .map(pi -> new AppInfoV2(context, pi, backupRoot))
+                .map(pi -> new AppInfoV2(context, pi, backupRoot.getUri()))
                 .collect(Collectors.toList());
         return packageList;
     }
@@ -49,7 +49,7 @@ public final class BackendController {
         // with backups
         List<BackupProperties> backups = new ArrayList<>(packageDirs.length);
         for(DocumentFile packageDir : packageDirs){
-            new AppInfoV2(context, packageDir);
+            new AppInfoV2(context, packageDir.getUri());
         }
 
         //Path packageBackupDir = FileSystems.getDefault().getPath(backupBaseDir);
