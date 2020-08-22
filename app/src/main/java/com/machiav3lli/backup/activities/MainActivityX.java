@@ -359,11 +359,11 @@ public class MainActivityX extends BaseActivity implements BatchConfirmDialog.Co
         int total = selectedList.size();
         int i = 1;
         List<ActionResult> results = new ArrayList<>(total);
-        for (AppInfo app : selectedList) {
+        for (AppInfoV2 app : selectedList) {
             String message = "(" + i + '/' + total + ')';
             String title = (this.backupBoolean ? this.getString(R.string.backupProgress) : this.getString(R.string.restoreProgress))
                     + " (" + i + '/' + total + ')';
-            NotificationHelper.showNotification(this, MainActivityX.class, notificationId, title, app.getLabel(), false);
+            NotificationHelper.showNotification(this, MainActivityX.class, notificationId, title, app.getAppInfo().getPackageLabel(), false);
             this.handleMessages.setMessage(app.getLabel(), message);
             int mode = checkSelectedMode();
             final BackupRestoreHelper backupRestoreHelper = new BackupRestoreHelper();
@@ -463,8 +463,7 @@ public class MainActivityX extends BaseActivity implements BatchConfirmDialog.Co
         if (mainBoolean || checkedList.isEmpty()) this.checkedList.clear();
         sheetSortFilter = new SortFilterSheet(SortFilterManager.getFilterPreferences(this));
         new Thread(() -> {
-            backupDir = FileUtils.getDefaultBackupDir(this, this);
-            appsList = AppInfoHelper.getPackageInfo(this, backupDir, true,
+            appsList = BackendController.getApplicationList(this.getApplicationContext());
                     PrefUtils.getPrivateSharedPrefs(this).getBoolean(Constants.PREFS_ENABLESPECIALBACKUPS, true));
             List<AppInfo> filteredList = SortFilterManager.applyFilter(appsList, SortFilterManager.getFilterPreferences(this).toString(), this);
             if (mainBoolean) refreshMain(filteredList, backupOrAppSheetBoolean);

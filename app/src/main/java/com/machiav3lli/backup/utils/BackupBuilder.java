@@ -1,6 +1,7 @@
 package com.machiav3lli.backup.utils;
 
 import android.content.Context;
+import android.net.Uri;
 
 import androidx.documentfile.provider.DocumentFile;
 
@@ -13,7 +14,7 @@ import java.time.LocalDateTime;
 
 public class BackupBuilder {
     private final Context context;
-    private final DocumentFile backupRoot;
+    private final Uri backupRoot;
     private final DocumentFile backupPath;
     private final AppMetaInfo appinfo;
     private final LocalDateTime backupDate;
@@ -24,7 +25,7 @@ public class BackupBuilder {
     private boolean hasObbData = false;
     private String cipherType = null;
 
-    public BackupBuilder(Context context, AppMetaInfo appinfo, DocumentFile backupRoot) {
+    public BackupBuilder(Context context, AppMetaInfo appinfo, Uri backupRoot) {
         this.context = context;
         this.backupRoot = backupRoot;
         this.appinfo = appinfo;
@@ -33,13 +34,13 @@ public class BackupBuilder {
     }
 
 
-    private DocumentFile ensureBackupPath(DocumentFile backupRoot) {
+    private DocumentFile ensureBackupPath(Uri backupRoot) {
         String dateTimeStr = Constants.BACKUP_DATE_TIME_FORMATTER.format(this.backupDate);
         // root/packageName/userId/dateTimeStr
         return DocumentHelper.ensureDirectory(
                 DocumentHelper.ensureDirectory(
                         DocumentHelper.ensureDirectory(
-                                backupRoot,
+                                DocumentFile.fromTreeUri(this.context, backupRoot),
                                 String.valueOf(this.appinfo.getProfileId())
                         ),
                         String.valueOf(this.appinfo.getProfileId())),

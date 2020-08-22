@@ -23,7 +23,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.os.PowerManager;
+import android.net.Uri;
 
 import androidx.biometric.BiometricManager;
 import androidx.core.app.ActivityCompat;
@@ -41,6 +41,7 @@ import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
 public class PrefUtils {
     private static final String TAG = Constants.classTag(".PrefUtils");
+    public static final String BACKUP_SUBDIR_NAME = "OABXNG";
     public static final int READ_PERMISSION = 2;
     public static final int WRITE_PERMISSION = 3;
 
@@ -62,6 +63,31 @@ public class PrefUtils {
 
     public static boolean isBiometricLockAvailable(Context context) {
         return BiometricManager.from(context).canAuthenticate() == BiometricManager.BIOMETRIC_SUCCESS;
+    }
+
+    public static String getStorageRootDir(Context context){
+        return PrefUtils.getPrivateSharedPrefs(context).getString(Constants.PREFS_PATH_BACKUP_DIRECTORY, "");
+    }
+    public static void setStorageRootDir(Context context, String value){
+        PrefUtils.getPrivateSharedPrefs(context).edit().putString(Constants.PREFS_PATH_BACKUP_DIRECTORY, value).apply();
+    }
+
+    /**
+     * Returns the backup directory URI. It's not the root path but the subdirectory, because
+     * user tend to just select their storage's root directory and expect the app to create a
+     * directory in it.
+     * @return URI to OABX storage directory
+     */
+    public static Uri getBackupDir(Context context){
+        String storageRoot = PrefUtils.getStorageRootDir(context);
+        if(storageRoot.isEmpty()){
+            return null;
+        }
+        return Uri.withAppendedPath(Uri.parse(storageRoot), PrefUtils.BACKUP_SUBDIR_NAME);
+    }
+
+    public static boolean isStorageDirSet(Context context){
+        return !PrefUtils.getStorageRootDir(context).isEmpty();
     }
 
     public static SharedPreferences getDefaultSharedPreferences(Context context) {

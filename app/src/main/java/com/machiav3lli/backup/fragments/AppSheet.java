@@ -110,9 +110,6 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         ArrayList<String> users = savedInstanceState != null ? savedInstanceState.getStringArrayList(Constants.BUNDLE_USERS) : new ArrayList<>();
         shellCommands = new ShellCommands(requireContext(), users);
         String backupDirPath = FileUtils.getBackupDirectoryPath(requireContext());
-        // Todo: Query the user for the backup dir!
-        backupDir = null;
-        // backupDir = FileUtils.createBackupDir(getActivity(), backupDirPath);
         return sheet;
     }
 

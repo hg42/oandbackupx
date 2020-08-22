@@ -65,6 +65,7 @@ public final class DocumentHelper {
         DocumentFile dir = base.findFile(dirName);
         if (dir == null) {
             dir = base.createDirectory(dirName);
+            assert dir != null;
         }
         return dir;
     }
