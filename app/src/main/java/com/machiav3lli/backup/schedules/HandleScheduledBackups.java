@@ -37,6 +37,7 @@ import com.machiav3lli.backup.items.ActionResult;
 import com.machiav3lli.backup.items.AppInfo;
 import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.schedules.db.Schedule;
+import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.LogUtils;
 import com.machiav3lli.backup.utils.PrefUtils;
 
@@ -72,7 +73,13 @@ public class HandleScheduledBackups {
             boolean specialBackups = prefs.getBoolean(Constants.PREFS_ENABLESPECIALBACKUPS, true);
             backupDir = new File(backupDirPath);
             //ArrayList<AppInfoV2> list = AppInfoHelper.getPackageInfo(context, backupDir, false, specialBackups);
-            List<AppInfoV2> list = BackendController.getApplicationList(this.context);
+            List<AppInfoV2> list = null;
+            try {
+                list = BackendController.getApplicationList(this.context);
+            } catch (FileUtils.BackupLocationInAccessibleException | PrefUtils.StorageLocationNotConfiguredException e) {
+                // Todo: Log this failure!
+                return;
+            }
             // Todo: Reenable Sorting
             //list.sort(SortFilterManager.appInfoLabelComparator);
             ArrayList<AppInfoV2> listToBackUp = new ArrayList<>();

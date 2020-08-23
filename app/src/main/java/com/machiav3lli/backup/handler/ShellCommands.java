@@ -94,7 +94,7 @@ public class ShellCommands {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd - HH:mm:ss", Locale.getDefault());
         String dateFormated = dateFormat.format(date);
         try {
-            File outFile = new LogUtils().createLogFile(context, FileUtils.getDefaultLogFilePath(context));
+            File outFile = new LogUtils().createLogFile(context, FileUtils.getDefaultLogFilePath(context).toString());
             if (outFile != null) {
                 try (FileWriter fw = new FileWriter(outFile.getAbsoluteFile(),
                         true);

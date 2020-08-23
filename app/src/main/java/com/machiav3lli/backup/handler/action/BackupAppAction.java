@@ -33,6 +33,7 @@ import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.items.BackupProperties;
 import com.machiav3lli.backup.utils.BackupBuilder;
 import com.machiav3lli.backup.utils.DocumentHelper;
+import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.PrefUtils;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
@@ -56,7 +57,18 @@ public class BackupAppAction extends BaseAppAction {
 
     public ActionResult run(AppInfoV2 app, int backupMode) {
         Log.i(BackupAppAction.TAG, String.format("Backing up: %s [%s]", app.getPackageName(), app.getAppInfo().getPackageLabel()));
-        Uri appBackupRootUri = app.getBackupDir(true);
+        Uri appBackupRootUri = null;
+        try {
+            appBackupRootUri = app.getBackupDir(true);
+        } catch (FileUtils.BackupLocationInAccessibleException | PrefUtils.StorageLocationNotConfiguredException e) {
+            // Usually, this should never happen, but just in case...
+            Exception realException = new BackupFailedException("Cannot backup data. Storage location not set or inaccessible", e);
+            return new ActionResult(app,
+                    null,
+                    String.format("%s: %s", realException.getClass().getSimpleName(), e.getMessage()),
+                    false
+            );
+        }
         BackupBuilder backupBuilder = new BackupBuilder(this.getContext(), app.getAppInfo(), appBackupRootUri);
         DocumentFile backupDir = backupBuilder.getBackupPath();
 

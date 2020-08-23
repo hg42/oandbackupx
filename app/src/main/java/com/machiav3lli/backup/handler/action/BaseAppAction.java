@@ -61,10 +61,6 @@ public abstract class BaseAppAction {
         return this.shell;
     }
 
-    public File getBackupFolder() {
-        return new File(FileUtils.getBackupDirectoryPath(this.context));
-    }
-
     public Uri getBackupArchive(Uri backupInstance, String what, boolean isEncrypted) {
         return backupInstance
                 .buildUpon()

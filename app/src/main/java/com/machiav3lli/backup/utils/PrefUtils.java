@@ -23,7 +23,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
-import android.net.Uri;
 
 import androidx.biometric.BiometricManager;
 import androidx.core.app.ActivityCompat;
@@ -65,29 +64,29 @@ public class PrefUtils {
         return BiometricManager.from(context).canAuthenticate() == BiometricManager.BIOMETRIC_SUCCESS;
     }
 
-    public static String getStorageRootDir(Context context){
-        return PrefUtils.getPrivateSharedPrefs(context).getString(Constants.PREFS_PATH_BACKUP_DIRECTORY, "");
-    }
-    public static void setStorageRootDir(Context context, String value){
-        PrefUtils.getPrivateSharedPrefs(context).edit().putString(Constants.PREFS_PATH_BACKUP_DIRECTORY, value).apply();
-    }
-
-    /**
-     * Returns the backup directory URI. It's not the root path but the subdirectory, because
-     * user tend to just select their storage's root directory and expect the app to create a
-     * directory in it.
-     * @return URI to OABX storage directory
-     */
-    public static Uri getBackupDir(Context context){
-        String storageRoot = PrefUtils.getStorageRootDir(context);
-        if(storageRoot.isEmpty()){
-            return null;
+    public static String getStorageRootDir(Context context) throws StorageLocationNotConfiguredException {
+        String location = PrefUtils.getPrivateSharedPrefs(context).getString(Constants.PREFS_PATH_BACKUP_DIRECTORY, "");
+        if(location.isEmpty()){
+            throw new StorageLocationNotConfiguredException();
         }
-        return Uri.withAppendedPath(Uri.parse(storageRoot), PrefUtils.BACKUP_SUBDIR_NAME);
+        return location;
     }
 
-    public static boolean isStorageDirSet(Context context){
-        return !PrefUtils.getStorageRootDir(context).isEmpty();
+    public static void setStorageRootDir(Context context, String value) {
+        PrefUtils.getPrivateSharedPrefs(context)
+                .edit()
+                .putString(Constants.PREFS_PATH_BACKUP_DIRECTORY, value)
+                .apply();
+        FileUtils.invalidateBackupLocation();
+    }
+
+
+    public static boolean isStorageDirSet(Context context) {
+        try {
+            return !PrefUtils.getStorageRootDir(context).isEmpty();
+        } catch (StorageLocationNotConfiguredException e) {
+            return false;
+        }
     }
 
     public static SharedPreferences getDefaultSharedPreferences(Context context) {
@@ -96,6 +95,15 @@ public class PrefUtils {
 
     public static SharedPreferences getPrivateSharedPrefs(Context context) {
         return context.getSharedPreferences(Constants.PREFS_SHARED_PRIVATE, Context.MODE_PRIVATE);
+    }
+
+
+    public static class StorageLocationNotConfiguredException extends Exception {
+
+        public StorageLocationNotConfiguredException() {
+            super("Storage Location has not been configured");
+        }
+
     }
 
     public static boolean checkStoragePermissions(Context context) {

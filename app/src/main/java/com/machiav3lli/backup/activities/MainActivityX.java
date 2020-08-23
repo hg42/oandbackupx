@@ -568,6 +568,13 @@ public class MainActivityX extends BaseActivity implements BatchConfirmDialog.Co
                 binding.searchView.setQuery("", false);
                 binding.refreshLayout.setRefreshing(false);
             });*/
+
+            } catch (FileUtils.BackupLocationInAccessibleException | PrefUtils.StorageLocationNotConfiguredException e) {
+                this.runOnUiThread(() -> {
+                    // Todo: Localize
+                    Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
         }).start();
     }
 

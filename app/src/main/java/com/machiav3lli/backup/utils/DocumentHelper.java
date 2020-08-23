@@ -26,22 +26,9 @@ import java.util.List;
 public final class DocumentHelper {
     public static final String TAG = Constants.classTag(".DocumentHelper");
 
-    public static DocumentFile getDocumentDir(Context context, String uri) {
-        // assume the stored path is an URI and it can be used with Storage Access Framework
-        // if it fails to parse it as URI, it's likely just a legacy plain path
-
-        // Todo: Remove this maybe
-        try {
-            return DocumentFile.fromTreeUri(context, Uri.parse(uri));
-        } catch (IllegalArgumentException e) {
-            return DocumentFile.fromFile(new File(uri));
-        }
-    }
-
-    public static DocumentFile getBackupRoot(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences(Constants.PREFS_SHARED_PRIVATE, Context.MODE_PRIVATE);
-        String backupBaseDir = prefs.getString(Constants.PREFS_PATH_BACKUP_DIRECTORY, FileUtils.DEFAULT_BACKUP_FOLDER);
-        return DocumentHelper.getDocumentDir(context, backupBaseDir);
+    public static DocumentFile getBackupRoot(Context context)
+            throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
+        return DocumentFile.fromTreeUri(context, FileUtils.getBackupDir(context));
     }
 
     public static DocumentFile getDocumentFile(Context context, Uri uri) {
@@ -50,15 +37,6 @@ public final class DocumentHelper {
         } catch (IllegalArgumentException e) {
             return DocumentFile.fromFile(new File(uri.toString()));
         }
-    }
-
-    public static DocumentFile getDirFromBackupRoot(Context context, String relativePath) {
-        Uri newUri = DocumentHelper.getBackupRoot(context)
-                .getUri()
-                .buildUpon()
-                .appendPath(relativePath)
-                .build();
-        return DocumentFile.fromTreeUri(context, newUri);
     }
 
     public static DocumentFile ensureDirectory(DocumentFile base, String dirName) {

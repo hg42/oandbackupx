@@ -152,7 +152,7 @@ public class RestoreAppAction extends BaseAppAction {
         if (RestoreAppAction.PACKAGE_STAGING_DIRECTORY.exists()) {
             // It's expected, that all SDK 24+ version of Android go this way.
             stagingApkPath = RestoreAppAction.PACKAGE_STAGING_DIRECTORY;
-        } else if (this.getBackupFolder().getAbsolutePath().startsWith(this.getContext().getDataDir().getAbsolutePath())) {
+        } else {
             /*
              * pm cannot install from a file on the data partition
              * Failure [INSTALL_FAILED_INVALID_URI] is reported
@@ -172,37 +172,32 @@ public class RestoreAppAction extends BaseAppAction {
 
         try {
             String command;
-            if (stagingApkPath != null) {
-                // Try it with a staging path. This is usually the way to go.
-                // copy apks to staging dir
-                for (DocumentFile apkDoc : apksToRestore) {
-                    DocumentHelper.suCopyFileFromDocument(
-                            this.getContext().getContentResolver(),
-                            apkDoc.getUri(),
-                            new File(stagingApkPath, apkDoc.getName()).getAbsolutePath()
-                    );
-                }
-                StringBuilder sb = new StringBuilder();
-                // Install main package
-                sb.append(this.getPackageInstallCommand(new File(stagingApkPath, baseApk.getName())));
-                // If split apk resources exist, install them afterwards (order does not matter)
-                if (splitApksInBackup.length > 0) {
-                    for (DocumentFile apk : splitApksInBackup) {
-                        sb.append(" && ").append(
-                                this.getPackageInstallCommand(new File(stagingApkPath, apk.getName()), backupProperties.getPackageName()));
-                    }
-                }
-
-                // append cleanup command
-                final File finalStagingApkPath = stagingApkPath;
-                sb.append(String.format(" && %s rm %s", this.getShell().getUtilboxPath(),
-                        Arrays.stream(apksToRestore).map(s -> '"' + finalStagingApkPath.getAbsolutePath() + '/' + s.getName() + '"').collect(Collectors.joining(" "))
-                ));
-                command = sb.toString();
-            } else {
-                // no staging path method available. The Android configuration is too special.
-                throw new RestoreFailedException("No or unknown way to install apks. Staging directory not available", null);
+            // Try it with a staging path. This is usually the way to go.
+            // copy apks to staging dir
+            for (DocumentFile apkDoc : apksToRestore) {
+                DocumentHelper.suCopyFileFromDocument(
+                        this.getContext().getContentResolver(),
+                        apkDoc.getUri(),
+                        new File(stagingApkPath, apkDoc.getName()).getAbsolutePath()
+                );
             }
+            StringBuilder sb = new StringBuilder();
+            // Install main package
+            sb.append(this.getPackageInstallCommand(new File(stagingApkPath, baseApk.getName())));
+            // If split apk resources exist, install them afterwards (order does not matter)
+            if (splitApksInBackup.length > 0) {
+                for (DocumentFile apk : splitApksInBackup) {
+                    sb.append(" && ").append(
+                            this.getPackageInstallCommand(new File(stagingApkPath, apk.getName()), backupProperties.getPackageName()));
+                }
+            }
+
+            // append cleanup command
+            final File finalStagingApkPath = stagingApkPath;
+            sb.append(String.format(" && %s rm %s", this.getShell().getUtilboxPath(),
+                    Arrays.stream(apksToRestore).map(s -> '"' + finalStagingApkPath.getAbsolutePath() + '/' + s.getName() + '"').collect(Collectors.joining(" "))
+            ));
+            command = sb.toString();
             ShellHandler.runAsRoot(command);
             // Todo: Reload package data; Implement function for it
         } catch (ShellHandler.ShellCommandFailedException e) {
