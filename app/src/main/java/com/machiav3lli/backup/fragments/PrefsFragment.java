@@ -40,6 +40,7 @@ import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.R;
 import com.machiav3lli.backup.activities.MainActivityX;
 import com.machiav3lli.backup.activities.PrefsActivity;
+import com.machiav3lli.backup.handler.BackendController;
 import com.machiav3lli.backup.handler.HandleMessages;
 import com.machiav3lli.backup.handler.NotificationHelper;
 import com.machiav3lli.backup.handler.ShellCommands;
@@ -98,7 +99,11 @@ public class PrefsFragment extends PreferenceFragmentCompat {
 
         pref = findPreference(Constants.PREFS_PATH_BACKUP_DIRECTORY);
         assert pref != null;
-        pref.setSummary(FileUtils.getBackupDirectoryPath(requireContext()));
+        try {
+            pref.setSummary(PrefUtils.getStorageRootDir(requireContext()));
+        } catch (PrefUtils.StorageLocationNotConfiguredException e) {
+            pref.setSummary("Unset"); // Todo: Move to language file!
+        }
         pref.setOnPreferenceClickListener(preference -> this.onClickBackupDirectory());
 
         pref = findPreference(Constants.PREFS_QUICK_REBOOT);
@@ -223,15 +228,20 @@ public class PrefsFragment extends PreferenceFragmentCompat {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == DEFAULT_DIR_CODE && data != null) {
+        if (requestCode == PrefsFragment.DEFAULT_DIR_CODE && data != null) {
             Uri newPath = data.getData();
             if (resultCode == Activity.RESULT_OK && newPath != null) {
-                String oldDir = PrefUtils.getStorageRootDir(this.requireContext());
-                if (!oldDir.equals(newPath.toString())) {
-                    Log.i(TAG, "setting uri " + newPath);
-                    setDefaultDir(requireContext(), newPath.toString());
+                String oldDir;
+                try {
+                    oldDir = PrefUtils.getStorageRootDir(this.requireContext());
+                } catch (PrefUtils.StorageLocationNotConfiguredException e) {
+                    // Can be ignored, this is about to set the path
+                    oldDir = "";
                 }
-                com.machiav3lli.backup.handler.BackendController.getAvailableBackups(this.getContext());
+                if (!oldDir.equals(newPath.toString())) {
+                    Log.i(PrefsFragment.TAG, "setting uri " + newPath);
+                    this.setDefaultDir(this.requireContext(), newPath.toString());
+                }
             }
         }
     }

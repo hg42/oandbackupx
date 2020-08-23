@@ -141,7 +141,7 @@ public class AppMetaInfo implements Parcelable {
     }
 
     public String[] getSplitSourceDirs() {
-        return this.getSplitSourceDirs();
+        return this.splitSourceDirs;
     }
 
     public boolean isSystem() {

@@ -25,6 +25,8 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.storage.StorageVolume;
+import android.provider.DocumentsContract;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -159,9 +161,9 @@ public class IntroActivity extends BaseActivity {
             Uri backupDir = FileUtils.getBackupDir(this);
             Log.d(IntroActivity.TAG, "Using backup location: " + backupDir);
             return true;
-        } catch (FileUtils.BackupLocationNotAccessibleException | FileUtils.BackupLocationNotSetException e) {
+        } catch (FileUtils.BackupLocationInAccessibleException | PrefUtils.StorageLocationNotConfiguredException e) {
             final String message;
-            if(e instanceof FileUtils.BackupLocationNotSetException){
+            if(e instanceof PrefUtils.StorageLocationNotConfiguredException){
                 message = "Backup location not configured. Please select a location where a backup directory will be created.";
             }else{
                 message = "Backup location is not accessible. Please select a new location where a backup directory will be created.";
@@ -169,6 +171,7 @@ public class IntroActivity extends BaseActivity {
             Toast.makeText(this, message, Toast.LENGTH_LONG).show();
 
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            intent.setType(DocumentsContract.Document.MIME_TYPE_DIR);
             this.startActivityForResult(intent, IntroActivity.BACKUP_DIR);
             return false;
         }

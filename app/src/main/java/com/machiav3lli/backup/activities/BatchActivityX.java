@@ -49,6 +49,7 @@ import com.machiav3lli.backup.items.BatchItemX;
 import com.machiav3lli.backup.items.MainItemX;
 import com.machiav3lli.backup.items.SortFilterModel;
 import com.machiav3lli.backup.utils.FileUtils;
+import com.machiav3lli.backup.utils.PrefUtils;
 import com.machiav3lli.backup.utils.UIUtils;
 import com.mikepenz.fastadapter.FastAdapter;
 import com.mikepenz.fastadapter.adapters.ItemAdapter;
@@ -102,7 +103,12 @@ public class BatchActivityX extends BaseActivity
         }
 
         if (this.originalList.isEmpty()) {
-            this.originalList = BackendController.getApplicationList(this);
+            // Todo: Move this to a background thread; check and compare refresh()
+            try {
+                this.originalList = BackendController.getApplicationList(this);
+            } catch (FileUtils.BackupLocationInAccessibleException | PrefUtils.StorageLocationNotConfiguredException e) {
+                Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+            }
             //originalList = AppInfoHelper.getPackageInfo(this, backupDir, true,
             //        prefs.getBoolean(Constants.PREFS_ENABLESPECIALBACKUPS, true));
         }
@@ -316,7 +322,13 @@ public class BatchActivityX extends BaseActivity
         this.runOnUiThread(() -> binding.refreshLayout.setRefreshing(true));
         new Thread(() -> {
             binding.cbAll.setChecked(false);
-            List<AppInfoV2> applicationList = BackendController.getApplicationList(this.getApplicationContext());
+            List<AppInfoV2> applicationList = null;
+            try {
+                applicationList = BackendController.getApplicationList(this);
+            } catch (FileUtils.BackupLocationInAccessibleException | PrefUtils.StorageLocationNotConfiguredException e) {
+                Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show();
+                return;
+            }
             ArrayList<BatchItemX> list = new ArrayList<>();
             if (this.backupBoolean) {
                 for (AppInfoV2 app : applicationList) {

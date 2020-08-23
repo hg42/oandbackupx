@@ -14,6 +14,7 @@ import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.items.BackupProperties;
 import com.machiav3lli.backup.utils.DocumentHelper;
 import com.machiav3lli.backup.utils.FileUtils;
+import com.machiav3lli.backup.utils.PrefUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +29,8 @@ public final class BackendController {
         return null;
     }
 
-    public static List<AppInfoV2> getApplicationList(Context context){
+    public static List<AppInfoV2> getApplicationList(Context context)
+            throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
         PackageManager pm = context.getPackageManager();
         DocumentFile backupRoot = DocumentHelper.getBackupRoot(context);
         List<PackageInfo> packageInfoList = pm.getInstalledPackages(0);

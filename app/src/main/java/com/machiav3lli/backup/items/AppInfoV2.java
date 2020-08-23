@@ -53,7 +53,7 @@ public class AppInfoV2 {
         }else{
             this.backupHistory = new ArrayList<>();
         }
-    }
+    }*/
 
     public AppInfoV2(Context context, PackageInfo packageInfo) throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
         this.context = context;
