@@ -60,7 +60,7 @@ public class AppMetaInfo implements Parcelable {
         this.sourceDir = pi.applicationInfo.sourceDir;
         this.splitSourceDirs = pi.applicationInfo.splitSourceDirs;
         // Boolean arithmetic to check if FLAG_SYSTEM is set
-        this.isSystem = (pi.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != ApplicationInfo.FLAG_SYSTEM;
+        this.isSystem = (pi.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == ApplicationInfo.FLAG_SYSTEM;
         this.applicationIcon = context.getPackageManager().getApplicationIcon(pi.applicationInfo);
     }
 

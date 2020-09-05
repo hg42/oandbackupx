@@ -26,22 +26,9 @@ import java.util.List;
 public final class DocumentHelper {
     public static final String TAG = Constants.classTag(".DocumentHelper");
 
-    public static DocumentFile fromUri(Context context, Uri uri){
-        //return new TreeDocumentFile();
-        return null;
-    }
-
     public static StorageFile getBackupRoot(Context context)
             throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
         return StorageFile.fromUri(context, FileUtils.getBackupDir(context));
-    }
-
-    public static DocumentFile getDocumentFile(Context context, Uri uri) {
-        try {
-            return DocumentFile.fromSingleUri(context, uri);
-        } catch (IllegalArgumentException e) {
-            return DocumentFile.fromFile(new File(uri.toString()));
-        }
     }
 
     public static StorageFile ensureDirectory(StorageFile base, String dirName) {
@@ -54,19 +41,19 @@ public final class DocumentHelper {
     }
 
     public static void deleteRecursive(Context context, Uri uri) throws FileNotFoundException {
-        DocumentFile target = DocumentHelper.getDocumentFile(context, uri);
-        if (target == null) {
+        StorageFile target = StorageFile.fromUri(context, uri);
+        if (!target.exists()) {
             throw new FileNotFoundException("File does not exist: " + uri);
         }
         DocumentHelper.deleteRecursive(target);
     }
 
-    public static void deleteRecursive(DocumentFile target) {
+    public static void deleteRecursive(StorageFile target) {
         if (target.isFile()) {
             target.delete();
         } else if (target.isDirectory()) {
-            DocumentFile[] contents = target.listFiles();
-            for (DocumentFile file : contents) {
+            StorageFile[] contents = target.listFiles();
+            for (StorageFile file : contents) {
                 DocumentHelper.deleteRecursive(file);
             }
         }
@@ -123,8 +110,8 @@ public final class DocumentHelper {
 
     public static void suRecursiveCopyFileFromDocument(Context context, Uri sourceDir, String targetPath) throws IOException, ShellHandler.ShellCommandFailedException {
         final ContentResolver resolver = context.getContentResolver();
-        DocumentFile rootDir = DocumentFile.fromTreeUri(context, sourceDir);
-        for (DocumentFile sourceDoc : rootDir.listFiles()) {
+        StorageFile rootDir = StorageFile.fromUri(context, sourceDir);
+        for (StorageFile sourceDoc : rootDir.listFiles()) {
             if (sourceDoc.isDirectory()) {
                 ShellHandler.runAsRoot(String.format("mkdir \"%s\"", new File(targetPath, sourceDoc.getName())));
             } else if (sourceDoc.isFile()) {

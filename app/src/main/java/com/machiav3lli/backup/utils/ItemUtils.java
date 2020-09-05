@@ -17,11 +17,15 @@
  */
 package com.machiav3lli.backup.utils;
 
+import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.view.View;
 
 import androidx.appcompat.widget.AppCompatTextView;
 
+import com.google.android.material.chip.Chip;
 import com.machiav3lli.backup.Constants;
+import com.machiav3lli.backup.R;
 import com.machiav3lli.backup.items.AppInfo;
 import com.machiav3lli.backup.schedules.db.Schedule;
 
@@ -66,12 +70,68 @@ public final class ItemUtils {
     public static void pickTypeColor(AppInfoV2 app, AppCompatTextView text) {
         int color;
         if (app.isInstalled()) {
-            color = app.getAppInfo().isSystem() ? Color.rgb(64, 158, 172) : Color.rgb(172, 64, 158);
-            // int color = app.isSystem() ? app.isSpecial() ? Color.rgb(158, 172, 64) : Color.rgb(64, 158, 172) : Color.rgb(172, 64, 158);
-            // if (app.isDisabled()) color = Color.DKGRAY;
-            text.setTextColor(color);
+            if (app.getAppInfo().isSpecial()) {
+                color = Color.rgb(155, 69, 214);
+            } else if (app.getAppInfo().isSystem()) {
+                color = Color.rgb(69, 147, 254);
+            } else {
+                color = Color.rgb(244, 155, 69);
+            }
+            if (app.isDisabled()) {
+                color = Color.DKGRAY;
+            }
         } else {
-            text.setTextColor(Color.GRAY);
+            color = Color.GRAY;
         }
+        text.setTextColor(color);
+    }
+
+    public static void pickAppType(AppInfoV2 app, Chip chip) {
+        ColorStateList color;
+        if (app.getAppInfo().isSpecial()) {
+            chip.setText(R.string.tag_special);
+            color = ColorStateList.valueOf(Color.rgb(155, 69, 214));
+        } else if (app.getAppInfo().isSystem()) {
+            chip.setText(R.string.tag_system);
+            color = ColorStateList.valueOf(Color.rgb(69, 147, 254));
+        } else {
+            chip.setText(R.string.tag_user);
+            color = ColorStateList.valueOf(Color.rgb(244, 155, 69));
+        }
+        if (app.isDisabled()) {
+            color = ColorStateList.valueOf(Color.DKGRAY);
+        }
+        if (!app.isInstalled()) {
+            color = ColorStateList.valueOf(Color.GRAY);
+        }
+        chip.setTextColor(color);
+        chip.setChipStrokeColor(color);
+    }
+
+    public static void pickBackupMode(int backupMode, Chip chip) {
+        ColorStateList color;
+        switch (backupMode) {
+            case AppInfo.MODE_APK:
+                chip.setVisibility(View.VISIBLE);
+                chip.setText(R.string.tag_apk);
+                color = ColorStateList.valueOf(Color.rgb(69, 244, 155));
+                break;
+            case AppInfo.MODE_DATA:
+                chip.setVisibility(View.VISIBLE);
+                chip.setText(R.string.tag_data);
+                color = ColorStateList.valueOf(Color.rgb(225, 94, 216));
+                break;
+            case AppInfo.MODE_BOTH:
+                chip.setVisibility(View.VISIBLE);
+                chip.setText(R.string.tag_apk_and_data);
+                color = ColorStateList.valueOf(Color.rgb(255, 76, 87));
+                break;
+            default:
+                chip.setVisibility(View.GONE);
+                color = ColorStateList.valueOf(Color.TRANSPARENT);
+                break;
+        }
+        chip.setTextColor(color);
+        chip.setChipStrokeColor(color);
     }
 }
