@@ -18,8 +18,9 @@
 package com.machiav3lli.backup.fragments;
 
 import android.app.Dialog;
+import android.app.usage.StorageStats;
 import android.content.Intent;
-import android.graphics.Color;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.format.Formatter;
@@ -33,6 +34,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.preference.PreferenceManager;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
@@ -46,29 +48,25 @@ import com.machiav3lli.backup.activities.MainActivityX;
 import com.machiav3lli.backup.databinding.SheetAppBinding;
 import com.machiav3lli.backup.dialogs.BackupDialogFragment;
 import com.machiav3lli.backup.dialogs.RestoreDialogFragment;
-import com.machiav3lli.backup.dialogs.ShareDialogFragment;
+import com.machiav3lli.backup.handler.BackendController;
 import com.machiav3lli.backup.handler.BackupRestoreHelper;
 import com.machiav3lli.backup.handler.HandleMessages;
 import com.machiav3lli.backup.handler.NotificationHelper;
 import com.machiav3lli.backup.handler.ShellCommands;
 import com.machiav3lli.backup.handler.ShellHandler;
-import com.machiav3lli.backup.items.AppInfo;
 import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.items.AppMetaInfo;
 import com.machiav3lli.backup.items.BackupItem;
 import com.machiav3lli.backup.items.BackupProperties;
-import com.machiav3lli.backup.items.LogFile;
 import com.machiav3lli.backup.items.MainItemX;
 import com.machiav3lli.backup.tasks.BackupTask;
 import com.machiav3lli.backup.tasks.RestoreTask;
 import com.machiav3lli.backup.utils.CommandUtils;
-import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.ItemUtils;
 import com.machiav3lli.backup.utils.UIUtils;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 public class AppSheet extends BottomSheetDialogFragment implements ActionListener {
@@ -183,22 +181,29 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         } else {
             this.binding.appType.setText(R.string.apptype_user);
         }
-        // Todo: Implement Special Type
-        /*if (appInfo.isSpecial()) {
-            UIUtils.setVisibility(binding.appSizeLine, View.GONE, update);
-            UIUtils.setVisibility(binding.dataSizeLine, View.GONE, update);
-            UIUtils.setVisibility(binding.cacheSizeLine, View.GONE, update);
-            UIUtils.setVisibility(binding.appSplitsLine, View.GONE, update);
+        if (appInfo.isSpecial()) {
+            UIUtils.setVisibility(this.binding.appSizeLine, View.GONE, update);
+            UIUtils.setVisibility(this.binding.dataSizeLine, View.GONE, update);
+            UIUtils.setVisibility(this.binding.cacheSizeLine, View.GONE, update);
+            UIUtils.setVisibility(this.binding.appSplitsLine, View.GONE, update);
         } else {
-            binding.appSize.setText(Formatter.formatFileSize(requireContext(), app.getAppSize()));
-            binding.dataSize.setText(Formatter.formatFileSize(requireContext(), app.getDataSize()));
-            binding.cacheSize.setText(Formatter.formatFileSize(requireContext(), app.getCacheSize()));
-            if (app.getCacheSize() == 0)
-                UIUtils.setVisibility(binding.wipeCache, View.GONE, update);
-        }*/
-        // Is this really important?
-        // if (app.isSplit()) binding.appSplits.setText(R.string.dialogYes);
-        // else binding.appSplits.setText(R.string.dialogNo);
+            try {
+                StorageStats storageStats = BackendController.getPackageStorageStats(this.requireContext(), appInfo.getPackageName());
+                this.binding.appSize.setText(Formatter.formatFileSize(this.requireContext(), storageStats.getAppBytes()));
+                this.binding.dataSize.setText(Formatter.formatFileSize(this.requireContext(), storageStats.getDataBytes()));
+                this.binding.cacheSize.setText(Formatter.formatFileSize(this.requireContext(), storageStats.getCacheBytes()));
+                if (storageStats.getCacheBytes() == 0) {
+                    UIUtils.setVisibility(this.binding.wipeCache, View.GONE, update);
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                Log.e(AppSheet.TAG, String.format("Package %s is not installed? Exception: %s", appInfo.getPackageName(), e));
+            }
+        }
+        if (this.app.getApkSplits() != null) {
+            this.binding.appSplits.setText(R.string.dialogYes);
+        } else {
+            this.binding.appSplits.setText(R.string.dialogNo);
+        }
 
         // Set some values which might be overwritten
         this.binding.versionName.setText(appInfo.getVersionName());
@@ -240,9 +245,9 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
             }
 
             UIUtils.setVisibility(this.binding.encryptedLine, View.VISIBLE, update);
-            if(backupProperties.getCipherType().isEmpty()) {
+            if (backupProperties.getCipherType().isEmpty()) {
                 this.binding.encrypted.setText(R.string.dialogNo);
-            }else {
+            } else {
                 this.binding.encrypted.setText(backupProperties.getCipherType());
             }
 
@@ -350,12 +355,12 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
                     Thread uninstallThread = new Thread(() -> {
                         Log.i(TAG, "uninstalling " + app.getAppInfo().getPackageLabel());
                         handleMessages.showMessage(app.getAppInfo().getPackageLabel(), getString(R.string.uninstallProgress));
-                            // Todo: Reenable Uninstalling
+                        // Todo: Reenable Uninstalling
                         //int ret = shellCommands.uninstall(app.getPackageName(), app.getSourceDir(), app.getDataDir(), app.isSystem());
                         int ret = 0;
-                            handleMessages.endMessage();
-                            if (ret == 0) {
-                                NotificationHelper.showNotification(getContext(), MainActivityX.class, notificationId++, app.getAppInfo().getPackageLabel(), getString(R.string.uninstallSuccess), true);
+                        handleMessages.endMessage();
+                        if (ret == 0) {
+                            NotificationHelper.showNotification(getContext(), MainActivityX.class, notificationId++, app.getAppInfo().getPackageLabel(), getString(R.string.uninstallSuccess), true);
                         } else {
                             NotificationHelper.showNotification(getContext(), MainActivityX.class, notificationId++, app.getAppInfo().getPackageLabel(), getString(R.string.uninstallFailure), true);
                             UIUtils.showErrors(requireActivity());

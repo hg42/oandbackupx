@@ -1,11 +1,15 @@
 package com.machiav3lli.backup.handler;
 
+import android.app.usage.StorageStats;
+import android.app.usage.StorageStatsManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Process;
+import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 
@@ -16,11 +20,14 @@ import com.machiav3lli.backup.utils.DocumentHelper;
 import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.PrefUtils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public final class BackendController {
+    private static final String TAG = Constants.classTag(".BackendController");
 
     public static List<AppInfoV2> getApplications(Context context){
         PackageManager pm = context.getPackageManager();
@@ -57,6 +64,21 @@ public final class BackendController {
         //Path packageBackupDir = FileSystems.getDefault().getPath(backupBaseDir);
 
         return null;
+    }
+
+    public static StorageStats getPackageStorageStats(Context context, String packageName) throws PackageManager.NameNotFoundException {
+        UUID storageUuid = context.getPackageManager().getApplicationInfo(packageName, 0).storageUuid;
+        return BackendController.getPackageStorageStats(context, packageName, storageUuid);
+    }
+
+    public static StorageStats getPackageStorageStats(Context context, String packageName, UUID storageUuid) throws PackageManager.NameNotFoundException {
+        StorageStatsManager storageStatsManager = (StorageStatsManager) context.getSystemService(Context.STORAGE_STATS_SERVICE);
+        try {
+            return storageStatsManager.queryStatsForPackage(storageUuid, packageName, Process.myUserHandle());
+        }catch(IOException e){
+            Log.e(BackendController.TAG, String.format("Could not retrieve storage stats of %s: %s", packageName, e));
+            return null;
+        }
     }
 
 }

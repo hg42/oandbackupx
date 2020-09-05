@@ -25,39 +25,39 @@ public class StorageFile {
     private final Context context;
     private Uri uri;
 
-    protected StorageFile(@Nullable StorageFile parent, Context context, Uri uri){
+    protected StorageFile(@Nullable StorageFile parent, Context context, Uri uri) {
         this.parent = parent;
         this.context = context;
         this.uri = uri;
     }
 
-    public static StorageFile fromUri(@NonNull Context context, @NonNull Uri uri){
+    public static StorageFile fromUri(@NonNull Context context, @NonNull Uri uri) {
         // Todo: Figure out what's wrong with the Uris coming from the intend and why they need to be processed with DocumentsContract.buildDocumentUriUsingTree(value, DocumentsContract.getTreeDocumentId(value)) first
         return new StorageFile(null, context, uri);
     }
 
     @Nullable
-    public StorageFile createDirectory(@NonNull String displayName){
+    public StorageFile createDirectory(@NonNull String displayName) {
         final Uri result = StorageFile.createFile(
                 this.context, this.uri, DocumentsContract.Document.MIME_TYPE_DIR, displayName);
         return (result != null) ? new StorageFile(this, context, result) : null;
     }
 
-    public StorageFile createFile(@NonNull String mimeType, @NonNull String displayName){
+    public StorageFile createFile(@NonNull String mimeType, @NonNull String displayName) {
         final Uri result = StorageFile.createFile(this.context, this.uri, mimeType, displayName);
         return (result != null) ? new StorageFile(this, this.context, result) : null;
     }
 
-    private static Uri createFile(Context context, Uri self, String mimeType, String displayName){
-        try{
+    private static Uri createFile(Context context, Uri self, String mimeType, String displayName) {
+        try {
             return DocumentsContract.createDocument(context.getContentResolver(), self, mimeType, displayName);
         } catch (FileNotFoundException e) {
             return null;
         }
     }
 
-    public boolean delete(){
-        try{
+    public boolean delete() {
+        try {
             return DocumentsContract.deleteDocument(this.context.getContentResolver(), this.uri);
         } catch (FileNotFoundException e) {
             return false;
@@ -74,7 +74,7 @@ public class StorageFile {
         return null;
     }
 
-    public StorageFile[] listFiles(){
+    public StorageFile[] listFiles() {
         final ContentResolver resolver = this.context.getContentResolver();
         final Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(this.uri,
                 DocumentsContract.getDocumentId(this.uri));
@@ -118,23 +118,27 @@ public class StorageFile {
         }
     }
 
-    public Uri getUri(){
+    public Uri getUri() {
         return this.uri;
     }
 
-    public String getName(){
+    public String getName() {
         return DocumentContractApi.getName(this.context, this.uri);
     }
 
-    public StorageFile getParentFile(){
+    public StorageFile getParentFile() {
         return this.parent;
     }
 
-    public boolean isDirectory(){
+    public boolean isFile() {
+        return DocumentContractApi.isFile(this.context, this.uri);
+    }
+
+    public boolean isDirectory() {
         return DocumentContractApi.isDirectory(this.context, this.uri);
     }
 
-    public boolean exists(){
+    public boolean exists() {
         return DocumentContractApi.exists(this.context, this.uri);
     }
 
