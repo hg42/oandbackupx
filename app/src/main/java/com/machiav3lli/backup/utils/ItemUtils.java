@@ -66,7 +66,7 @@ public final class ItemUtils {
     public static void pickTypeColor(AppInfoV2 app, AppCompatTextView text) {
         int color;
         if (app.isInstalled()) {
-            int color = app.getAppInfo().isSystem() ? Color.rgb(64, 158, 172) : Color.rgb(172, 64, 158);
+            color = app.getAppInfo().isSystem() ? Color.rgb(64, 158, 172) : Color.rgb(172, 64, 158);
             // int color = app.isSystem() ? app.isSpecial() ? Color.rgb(158, 172, 64) : Color.rgb(64, 158, 172) : Color.rgb(172, 64, 158);
             // if (app.isDisabled()) color = Color.DKGRAY;
             text.setTextColor(color);

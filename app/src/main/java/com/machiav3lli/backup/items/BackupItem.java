@@ -6,6 +6,7 @@ import android.net.Uri;
 import androidx.documentfile.provider.DocumentFile;
 
 import com.machiav3lli.backup.Constants;
+import com.machiav3lli.backup.handler.StorageFile;
 import com.machiav3lli.backup.utils.FileUtils;
 
 import org.apache.commons.io.IOUtils;
@@ -23,16 +24,16 @@ public class BackupItem {
 
     private static final String TAG = Constants.classTag(".BackupItem");
     private final BackupProperties backupProperties;
-    private final DocumentFile backupInstance;
+    private final StorageFile backupInstance;
 
-    public BackupItem(BackupProperties properties, DocumentFile backupInstance) {
+    public BackupItem(BackupProperties properties, StorageFile backupInstance) {
         this.backupProperties = properties;
         this.backupInstance = backupInstance;
     }
 
-    public BackupItem(Context context, DocumentFile backupInstance) throws BrokenBackupException {
+    public BackupItem(Context context, StorageFile backupInstance) throws BrokenBackupException {
         this.backupInstance = backupInstance;
-        DocumentFile propertiesFile = backupInstance.findFile(BackupProperties.PROPERTIES_FILENAME);
+        StorageFile propertiesFile = backupInstance.findFile(BackupProperties.PROPERTIES_FILENAME);
         if (propertiesFile == null) {
             throw new BrokenBackupException(
                     String.format("Missing %s file at URI %s",

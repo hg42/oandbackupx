@@ -32,7 +32,7 @@ public final class BackendController {
     public static List<AppInfoV2> getApplicationList(Context context)
             throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
         PackageManager pm = context.getPackageManager();
-        DocumentFile backupRoot = DocumentHelper.getBackupRoot(context);
+        StorageFile backupRoot = DocumentHelper.getBackupRoot(context);
         List<PackageInfo> packageInfoList = pm.getInstalledPackages(0);
         List<AppInfoV2> packageList = packageInfoList.stream()
                 .map(pi -> new AppInfoV2(context, pi, backupRoot.getUri()))

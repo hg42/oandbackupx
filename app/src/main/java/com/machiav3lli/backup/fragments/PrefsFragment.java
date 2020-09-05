@@ -218,11 +218,11 @@ public class PrefsFragment extends PreferenceFragmentCompat {
         return true;
     }
 
-    private void setDefaultDir(Context context, String dir) {
+    private void setDefaultDir(Context context, Uri dir) {
         PrefUtils.setStorageRootDir(context, dir);
         Preference pref = this.findPreference(Constants.PREFS_PATH_BACKUP_DIRECTORY);
         assert pref != null;
-        pref.setSummary(dir);
+        pref.setSummary(dir.toString());
     }
 
     @Override
@@ -240,7 +240,7 @@ public class PrefsFragment extends PreferenceFragmentCompat {
                 }
                 if (!oldDir.equals(newPath.toString())) {
                     Log.i(PrefsFragment.TAG, "setting uri " + newPath);
-                    this.setDefaultDir(this.requireContext(), newPath.toString());
+                    this.setDefaultDir(this.requireContext(), newPath);
                 }
             }
         }

@@ -19,9 +19,13 @@ package com.machiav3lli.backup.handler;
 
 import android.system.ErrnoException;
 import android.system.Os;
+import android.util.Log;
 
+import com.machiav3lli.backup.Constants;
+import com.topjohnwu.superuser.Shell;
 import com.topjohnwu.superuser.io.SuFileInputStream;
 import com.topjohnwu.superuser.io.SuFileOutputStream;
+import com.topjohnwu.superuser.io.SuRandomAccessFile;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -36,12 +40,17 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import kotlin.NotImplementedError;
 
 public final class TarUtils {
+    private static final String TAG = Constants.classTag(".TarUtils");
+    public static final int BUFFERSIZE = 8 * 1024 * 1024;
 
     /**
      * Adds a filepath to the given archive.
@@ -64,8 +73,6 @@ public final class TarUtils {
         if (inputFilepath.isFile() && !FileUtils.isSymlink(inputFilepath)) {
             BufferedInputStream bis = new BufferedInputStream(new FileInputStream(inputFilepath));
             IOUtils.copy(bis, archive);
-            bis.close();
-            archive.closeArchiveEntry();
         } else if (inputFilepath.isDirectory()) {
             archive.closeArchiveEntry();
             for (File nextFile : Objects.requireNonNull(inputFilepath.listFiles(), "Directory listing returned null!")) {
@@ -79,15 +86,19 @@ public final class TarUtils {
 
     public static void suAddFiles(TarArchiveOutputStream archive, List<ShellHandler.FileInfo> allFiles) throws IOException {
         for (ShellHandler.FileInfo file : allFiles) {
+            Log.d(TarUtils.TAG, String.format("Adding %s to archive (filesize: %d)", file.getFilepath(), file.getFilesize()));
             TarArchiveEntry entry;
             switch (file.getFiletype()) {
                 case REGULAR_FILE:
-                    entry = new TarArchiveEntry(new File(file.getFilepath()));
+                    entry = new TarArchiveEntry(file.getFilepath());
+                    entry.setSize(file.getFilesize());
+                    entry.setNames(file.getOwner(), file.getGroup());
                     archive.putArchiveEntry(entry);
-                    try (SuFileInputStream in = new SuFileInputStream(file.getAbsolutePath())) {
-                        IOUtils.copy(in, archive);
+                    try {
+                        ShellHandler.quirkLibsuReadFileWorkaround(file, archive);
+                    } finally {
+                        archive.closeArchiveEntry();
                     }
-                    archive.closeArchiveEntry();
                     break;
                 case BLOCK_DEVICE:
                     throw new NotImplementedError("Block devices should not occur");
@@ -95,17 +106,20 @@ public final class TarUtils {
                     throw new NotImplementedError("Char devices should not occur");
                 case DIRECTORY:
                     entry = new TarArchiveEntry(file.getFilepath(), TarConstants.LF_DIR);
+                    entry.setNames(file.getOwner(), file.getGroup());
                     archive.putArchiveEntry(entry);
                     archive.closeArchiveEntry();
                     break;
                 case SYMBOLIC_LINK:
                     entry = new TarArchiveEntry(file.getFilepath(), TarConstants.LF_LINK);
                     entry.setLinkName(file.getLinkName());
+                    entry.setNames(file.getOwner(), file.getGroup());
                     archive.putArchiveEntry(entry);
                     archive.closeArchiveEntry();
                     break;
                 case NAMED_PIPE:
                     entry = new TarArchiveEntry(file.getFilepath(), TarConstants.LF_FIFO);
+                    entry.setNames(file.getOwner(), file.getGroup());
                     archive.putArchiveEntry(entry);
                     archive.closeArchiveEntry();
                     break;
@@ -122,7 +136,7 @@ public final class TarUtils {
             if (tarEntry.isDirectory()) {
                 ShellHandler.runAsRoot(String.format("mkdir \"%s\"", file.getAbsolutePath()));
                 TarUtils.suUncompressTo(archive, new File(targetDir, file.getName()).getAbsolutePath());
-            } else if (tarEntry.isFile()){
+            } else if (tarEntry.isFile()) {
                 try (SuFileOutputStream fos = new SuFileOutputStream(new File(targetDir, tarEntry.getName()))) {
                     IOUtils.copy(archive, fos);
                 }
@@ -131,12 +145,12 @@ public final class TarUtils {
                         String.format(
                                 "cd \"%s\" && ln -s \"%s\" \"%s\"; cd -", targetDir, file.getAbsolutePath(), tarEntry.getLinkName()
                         ));
-            } else if(tarEntry.isFIFO()){
+            } else if (tarEntry.isFIFO()) {
                 ShellHandler.runAsRoot(
                         String.format(
                                 "cd \"%s\" && mkfifo \"%s\"; cd -", targetDir, file.getAbsolutePath()
                         ));
-            }else{
+            } else {
                 throw new NotImplementedError("Cannot restore file type");
             }
         }

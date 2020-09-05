@@ -25,6 +25,7 @@ import android.util.Log;
 import androidx.documentfile.provider.DocumentFile;
 
 import com.machiav3lli.backup.Constants;
+import com.machiav3lli.backup.handler.StorageFile;
 import com.machiav3lli.backup.utils.PrefUtils.StorageLocationNotConfiguredException;
 
 import java.io.BufferedReader;
@@ -81,20 +82,6 @@ public final class FileUtils {
         //return PrefUtils.getPrivateSharedPrefs(context).getString(Constants.PREFS_PATH_BACKUP_DIRECTORY, PrefUtils.getBackupDir(context) + "/OAndBackupX.log");
     }
 
-    /*public static Uri getOrCreateBackupSubdirectory(DocumentFile storageRoot){
-        DocumentFile backupRoot = storageRoot.findFile(backupDirUri);
-        if (backupRoot == null || !backupRoot.exists()) {
-            throw new BackupLocationNotAccessibleException("Cannot access backup directory");
-        }
-        DocumentFile backupDir = backupRoot.findFile(FileUtils.BACKUP_SUBDIR_NAME);
-        if (backupDir == null) {
-            Log.i(FileUtils.TAG, "Backup directory does not exist. Creating it");
-            backupDir = backupRoot.createDirectory(FileUtils.BACKUP_SUBDIR_NAME);
-            assert backupDir != null;
-        }
-        return backupDir.getUri();
-    }*/
-
     /**
      * Returns the backup directory URI. It's not the root path but the subdirectory, because
      * user tend to just select their storage's root directory and expect the app to create a
@@ -106,20 +93,34 @@ public final class FileUtils {
             throws StorageLocationNotConfiguredException, BackupLocationInAccessibleException {
         if (FileUtils.backupLocation == null) {
             String storageRoot = PrefUtils.getStorageRootDir(context);
+            /*
+            content://com.android.externalstorage.documents/tree/160D-2E03%3AOABXNG%2FSubdir
+            -> DocumentsContract.getTreeDocumentId(Uri.parse(storageRoot))
+            -> 160D-2E03:OABXNG/Subdir
+            => /mnt/media_rw/160D-2E03/OABXNG/Subdir
+            content://com.android.externalstorage.documents/tree/primary%3AOABX%2FInternalDir
+            -> primary:OABX/InternalDir
+            new TreeDocumentFile(null, context, backupLocationDoc.getUri()).getUri().getPath()
+             */
+            String[] storageLocation = DocumentsContract.getTreeDocumentId(Uri.parse(storageRoot)).split(":",  2);
+
             if (storageRoot.isEmpty()) {
                 throw new StorageLocationNotConfiguredException();
             }
             DocumentFile storageRootDoc = DocumentFile.fromTreeUri(context, Uri.parse(storageRoot));
+            StorageFile storageRootDoc2 = StorageFile.fromUri(context, Uri.parse(storageRoot));
             if(storageRootDoc == null || !storageRootDoc.exists()){
                 throw new BackupLocationInAccessibleException("Cannot access the root location.");
             }
             DocumentFile backupLocationDoc = storageRootDoc.findFile(FileUtils.BACKUP_SUBDIR_NAME);
+            StorageFile backupLocationDoc2 = storageRootDoc2.findFile(FileUtils.BACKUP_SUBDIR_NAME);
             if(backupLocationDoc == null || !backupLocationDoc.exists()){
                 Log.i(FileUtils.TAG, "Backup directory does not exist. Creating it");
                 backupLocationDoc = storageRootDoc.createDirectory(FileUtils.BACKUP_SUBDIR_NAME);
                 assert backupLocationDoc != null;
             }
-            FileUtils.backupLocation = Uri.parse(DocumentsContract.getTreeDocumentId(backupLocationDoc.getUri()));
+            //FileUtils.backupLocation = Uri.parse(DocumentsContract.getTreeDocumentId(backupLocationDoc.getUri()));
+            FileUtils.backupLocation = backupLocationDoc.getUri();
         }
         return FileUtils.backupLocation;
     }

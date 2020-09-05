@@ -171,7 +171,6 @@ public class IntroActivity extends BaseActivity {
             Toast.makeText(this, message, Toast.LENGTH_LONG).show();
 
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-            intent.setType(DocumentsContract.Document.MIME_TYPE_DIR);
             this.startActivityForResult(intent, IntroActivity.BACKUP_DIR);
             return false;
         }
@@ -212,7 +211,7 @@ public class IntroActivity extends BaseActivity {
             if (requestCode == BACKUP_DIR) {
                 Uri uri = data.getData();
                 if (resultCode == Activity.RESULT_OK) {
-                    PrefUtils.setStorageRootDir(this, uri.toString());
+                    PrefUtils.setStorageRootDir(this, uri);
                 }
                 this.ensureBackupDirectory();
             }

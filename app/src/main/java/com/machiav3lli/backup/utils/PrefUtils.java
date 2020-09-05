@@ -23,6 +23,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.net.Uri;
+import android.provider.DocumentsContract;
 
 import androidx.biometric.BiometricManager;
 import androidx.core.app.ActivityCompat;
@@ -64,6 +66,13 @@ public class PrefUtils {
         return BiometricManager.from(context).canAuthenticate() == BiometricManager.BIOMETRIC_SUCCESS;
     }
 
+    /**
+     * Returns the user selected location. Go for `FileUtil.getBackupDir` to get the actual
+     * backup dir's path
+     * @param context application context
+     * @return user configured location
+     * @throws StorageLocationNotConfiguredException if the value is not set
+     */
     public static String getStorageRootDir(Context context) throws StorageLocationNotConfiguredException {
         String location = PrefUtils.getPrivateSharedPrefs(context).getString(Constants.PREFS_PATH_BACKUP_DIRECTORY, "");
         if(location.isEmpty()){
@@ -72,11 +81,12 @@ public class PrefUtils {
         return location;
     }
 
-    public static void setStorageRootDir(Context context, String value) {
+    public static void setStorageRootDir(Context context, Uri value) {
+        Uri fullUri = DocumentsContract.buildDocumentUriUsingTree(value, DocumentsContract.getTreeDocumentId(value));
         PrefUtils.getPrivateSharedPrefs(context)
-                .edit()
-                .putString(Constants.PREFS_PATH_BACKUP_DIRECTORY, value)
-                .apply();
+                        .edit()
+                        .putString(Constants.PREFS_PATH_BACKUP_DIRECTORY, fullUri.toString())
+                        .apply();
         FileUtils.invalidateBackupLocation();
     }
 
