@@ -21,7 +21,7 @@ import android.content.Context;
 import android.net.Uri;
 import android.util.Log;
 
-import androidx.documentfile.provider.DocumentFile;
+import androidx.annotation.NonNull;
 
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.handler.Crypto;
@@ -39,11 +39,13 @@ import com.machiav3lli.backup.utils.PrefUtils;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -75,7 +77,7 @@ public class BackupAppAction extends BaseAppAction {
 
         Log.d(BackupAppAction.TAG, "Killing package to avoid file changes during backup");
         this.killPackage(app.getPackageName());
-
+        BackupProperties backupProperties;
         try {
             if ((backupMode & AppInfo.MODE_APK) == AppInfo.MODE_APK) {
                 Log.i(BackupAppAction.TAG, String.format("%s: Backing up package", app));
@@ -100,17 +102,27 @@ public class BackupAppAction extends BaseAppAction {
             if (PrefUtils.isEncryptionEnabled(this.getContext())) {
                 backupBuilder.setCipherType(Crypto.getCipherAlgorithm(this.getContext()));
             }
-        } catch (BackupFailedException | Crypto.CryptoSetupException e) {
-            Log.d(TAG, "Backup deleted: " + backupBuilder.getBackupPath().delete());
+            backupProperties = backupBuilder.createBackupProperties();
+            this.saveBackupProperties(backupDir, backupProperties);
+        } catch (BackupFailedException | Crypto.CryptoSetupException | IOException e) {
+            Log.e(BackupAppAction.TAG, String.format("Backup failed due to %s: %s", e.getClass().getSimpleName(), e.getMessage()));
+            Log.d(BackupAppAction.TAG, "Backup deleted: " + backupBuilder.getBackupPath().delete());
             return new ActionResult(app,
                     null,
                     String.format("%s: %s", e.getClass().getSimpleName(), e.getMessage()),
                     false
             );
         }
-        BackupProperties backupProperties = backupBuilder.createBackupProperties();
         Log.i(BackupAppAction.TAG, String.format("%s: Backup done: %s", app, backupProperties));
         return new ActionResult(app, backupProperties, "", true);
+    }
+
+    protected void saveBackupProperties(@NonNull StorageFile backupInstanceDir, @NotNull BackupProperties properties) throws IOException {
+        StorageFile propertiesFile = backupInstanceDir.createFile("application/json", BackupProperties.PROPERTIES_FILENAME);
+        try (BufferedOutputStream propertiesOut = new BufferedOutputStream(this.getContext().getContentResolver().openOutputStream(propertiesFile.getUri(), "w"))) {
+            propertiesOut.write(properties.toGson().getBytes(StandardCharsets.UTF_8));
+        }
+        Log.i(BackupAppAction.TAG, String.format("Wrote %s file for backup: %s", BackupProperties.PROPERTIES_FILENAME, properties));
     }
 
     protected void createBackupArchive(Uri backupInstanceDir, String what, List<ShellHandler.FileInfo> allFilesToBackup) throws IOException, Crypto.CryptoSetupException {
@@ -197,7 +209,7 @@ public class BackupAppAction extends BaseAppAction {
             List<ShellHandler.FileInfo> dirsInSource = this.getShell().suGetDetailedDirectoryContents(
                     sourceDirectory,
                     false,
-                    null//new File(sourceDirectory).getAbsolutePath()
+                    null
             );
             // Excludes cache and libs, when we don't want to backup'em
             if (PrefUtils.getDefaultSharedPreferences(this.getContext()).getBoolean(Constants.PREFS_EXCLUDECACHE, true)) {
