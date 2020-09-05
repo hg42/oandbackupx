@@ -6,6 +6,7 @@ import android.net.Uri;
 import androidx.documentfile.provider.DocumentFile;
 
 import com.machiav3lli.backup.Constants;
+import com.machiav3lli.backup.handler.StorageFile;
 import com.machiav3lli.backup.items.AppMetaInfo;
 import com.machiav3lli.backup.items.BackupItem;
 import com.machiav3lli.backup.items.BackupProperties;
@@ -15,7 +16,7 @@ import java.time.LocalDateTime;
 public class BackupBuilder {
     private final Context context;
     private final Uri backupRoot;
-    private final DocumentFile backupPath;
+    private final StorageFile backupPath;
     private final AppMetaInfo appinfo;
     private final LocalDateTime backupDate;
     private boolean hasApk = false;
@@ -34,20 +35,20 @@ public class BackupBuilder {
     }
 
 
-    private DocumentFile ensureBackupPath(Uri backupRoot) {
+    private StorageFile ensureBackupPath(Uri backupRoot) {
         String dateTimeStr = Constants.BACKUP_DATE_TIME_FORMATTER.format(this.backupDate);
         // root/packageName/userId/dateTimeStr
         return DocumentHelper.ensureDirectory(
                 DocumentHelper.ensureDirectory(
                         DocumentHelper.ensureDirectory(
-                                DocumentFile.fromTreeUri(this.context, backupRoot),
-                                String.valueOf(this.appinfo.getProfileId())
+                                StorageFile.fromUri(this.context, backupRoot),
+                                this.appinfo.getPackageName()
                         ),
                         String.valueOf(this.appinfo.getProfileId())),
                 dateTimeStr);
     }
 
-    public DocumentFile getBackupPath(){
+    public StorageFile getBackupPath() {
         return this.backupPath;
     }
 
@@ -90,7 +91,7 @@ public class BackupBuilder {
                 this.backupPath);
     }
 
-    public BackupProperties createBackupProperties(){
+    public BackupProperties createBackupProperties() {
         return new BackupProperties(this.backupPath.getUri(),
                 this.appinfo, this.backupDate, this.hasApk, this.hasAppData,
                 this.hasDevicesProtectedData, this.hasExternalData,

@@ -17,8 +17,14 @@
  */
 package com.machiav3lli.backup.handler.action;
 
+import android.annotation.SuppressLint;
+import android.app.ActivityManager;
 import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.util.Log;
 
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.handler.ShellHandler;
@@ -79,6 +85,18 @@ public abstract class BaseAppAction {
     public abstract static class AppActionFailedException extends Exception {
         protected AppActionFailedException(String message, Throwable cause) {
             super(message, cause);
+        }
+    }
+
+    @SuppressLint("DefaultLocale")
+    public void killPackage(String packageName) {
+        try {
+            ApplicationInfo applicationInfo = this.context.getPackageManager().getApplicationInfo(packageName, 0);
+            ShellHandler.runAsRoot(String.format("ps -o PID -u %d | grep -v PID | xargs kill", applicationInfo.uid));
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.w(BaseAppAction.TAG, packageName + " does not exist. Cannot kill any processes!");
+        } catch (ShellHandler.ShellCommandFailedException e) {
+            e.printStackTrace();
         }
     }
 }

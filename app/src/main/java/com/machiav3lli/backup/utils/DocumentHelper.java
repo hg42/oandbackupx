@@ -2,15 +2,15 @@ package com.machiav3lli.backup.utils;
 
 import android.content.ContentResolver;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.net.Uri;
 import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 
+
 import com.machiav3lli.backup.Constants;
-import com.machiav3lli.backup.handler.ShellCommands;
 import com.machiav3lli.backup.handler.ShellHandler;
+import com.machiav3lli.backup.handler.StorageFile;
 import com.topjohnwu.superuser.io.SuFileInputStream;
 import com.topjohnwu.superuser.io.SuFileOutputStream;
 
@@ -26,9 +26,14 @@ import java.util.List;
 public final class DocumentHelper {
     public static final String TAG = Constants.classTag(".DocumentHelper");
 
-    public static DocumentFile getBackupRoot(Context context)
+    public static DocumentFile fromUri(Context context, Uri uri){
+        //return new TreeDocumentFile();
+        return null;
+    }
+
+    public static StorageFile getBackupRoot(Context context)
             throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
-        return DocumentFile.fromTreeUri(context, FileUtils.getBackupDir(context));
+        return StorageFile.fromUri(context, FileUtils.getBackupDir(context));
     }
 
     public static DocumentFile getDocumentFile(Context context, Uri uri) {
@@ -39,8 +44,8 @@ public final class DocumentHelper {
         }
     }
 
-    public static DocumentFile ensureDirectory(DocumentFile base, String dirName) {
-        DocumentFile dir = base.findFile(dirName);
+    public static StorageFile ensureDirectory(StorageFile base, String dirName) {
+        StorageFile dir = base.findFile(dirName);
         if (dir == null) {
             dir = base.createDirectory(dirName);
             assert dir != null;
@@ -71,10 +76,10 @@ public final class DocumentHelper {
         final ContentResolver resolver = context.getContentResolver();
         for (ShellHandler.FileInfo file : filesToBackup) {
             Uri parentUri = targetUri.buildUpon().appendEncodedPath(new File(file.getFilepath()).getParent()).build();
-            DocumentFile parentFile = DocumentFile.fromTreeUri(context, parentUri);
+            StorageFile parentFile = StorageFile.fromUri(context, parentUri);
             switch (file.getFiletype()) {
                 case REGULAR_FILE:
-                    DocumentHelper.suCopyFileToDocument(resolver, file.getAbsolutePath(), DocumentFile.fromTreeUri(context, parentUri));
+                    DocumentHelper.suCopyFileToDocument(resolver, file, StorageFile.fromUri(context, parentUri));
                     break;
                 case DIRECTORY:
                     parentFile.createDirectory(file.getFilename());
@@ -86,12 +91,32 @@ public final class DocumentHelper {
         }
     }
 
-    public static void suCopyFileToDocument(ContentResolver resolver, String sourcePath, DocumentFile targetDir) throws IOException {
+    /**
+     *
+     * Note: This method is bugged, because libsu file might set eof flag in the middle of the file
+     *          Use the method with the ShellHandler.FileInfo object as parameter instead
+     *
+     * @param resolver ContentResolver context to use
+     * @param sourcePath filepath to open and read from
+     * @param targetDir file to write the contents to
+     * @throws IOException on I/O related errors or FileNotFoundException
+     */
+    public static void suCopyFileToDocument(ContentResolver resolver, String sourcePath, StorageFile targetDir) throws IOException {
         try (SuFileInputStream inputFile = new SuFileInputStream(sourcePath)) {
-            DocumentFile newFile = targetDir.createFile("application/octet-stream", new File(sourcePath).getName());
+            StorageFile newFile = targetDir.createFile("application/octet-stream", new File(sourcePath).getName());
             assert newFile != null;
             try (OutputStream outputFile = resolver.openOutputStream(newFile.getUri())) {
                 IOUtils.copy(inputFile, outputFile);
+            }
+        }
+    }
+
+    public static void suCopyFileToDocument(ContentResolver resolver, ShellHandler.FileInfo sourceFile, StorageFile targetDir) throws IOException {
+        try (SuFileInputStream inputFile = new SuFileInputStream(sourceFile.getAbsolutePath())) {
+            StorageFile newFile = targetDir.createFile("application/octet-stream", sourceFile.getFilename());
+            assert newFile != null;
+            try (OutputStream outputFile = resolver.openOutputStream(newFile.getUri())) {
+                ShellHandler.quirkLibsuReadFileWorkaround(sourceFile, outputFile);
             }
         }
     }

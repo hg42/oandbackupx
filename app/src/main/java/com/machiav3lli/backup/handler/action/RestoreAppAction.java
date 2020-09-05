@@ -333,21 +333,6 @@ public class RestoreAppAction extends BaseAppAction {
                 apkPath);
     }
 
-    public void killPackage(String packageName) {
-        ActivityManager manager = (ActivityManager) this.getContext().getSystemService(Context.ACTIVITY_SERVICE);
-        List<ActivityManager.RunningAppProcessInfo> runningList = manager.getRunningAppProcesses();
-        for (ActivityManager.RunningAppProcessInfo process : runningList) {
-            if (process.processName.equals(packageName) && process.pid != android.os.Process.myPid()) {
-                Log.d(RestoreAppAction.TAG, String.format("Killing pid %d of package %s", process.pid, packageName));
-                try {
-                    ShellHandler.runAsRoot("kill " + process.pid);
-                } catch (ShellHandler.ShellCommandFailedException e) {
-                    Log.e(RestoreAppAction.TAG, BaseAppAction.extractErrorMessage(e.getShellResult()));
-                }
-            }
-        }
-    }
-
     public enum RestoreCommand {
         MOVE("mv"),
         COPY("cp -r");

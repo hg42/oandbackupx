@@ -19,13 +19,21 @@ package com.machiav3lli.backup.handler;
 
 import android.util.Log;
 
+import androidx.annotation.Nullable;
+import androidx.preference.PreferenceManager;
+
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.utils.CommandUtils;
 import com.topjohnwu.superuser.Shell;
+import com.topjohnwu.superuser.io.SuRandomAccessFile;
 
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -79,10 +87,10 @@ public class ShellHandler {
     }
 
     public List<FileInfo> suGetDetailedDirectoryContents(String path, boolean recursive) throws ShellCommandFailedException {
-        return this.suGetDetailedDirectoryContents(path, recursive, "");
+        return this.suGetDetailedDirectoryContents(path, recursive, null);
     }
 
-    public List<FileInfo> suGetDetailedDirectoryContents(String path, boolean recursive, String parent) throws ShellCommandFailedException {
+    public List<FileInfo> suGetDetailedDirectoryContents(String path, boolean recursive, @Nullable String parent) throws ShellCommandFailedException {
         // Expecting something like this (with whitespace)
         // "drwxrwx--x 3 u0_a74 u0_a74       4096 2020-08-14 13:54 files"
         // Special case:
@@ -90,11 +98,12 @@ public class ShellHandler {
         Shell.Result shellResult = ShellHandler.runAsRoot(String.format("%s ls -Al \"%s\"", this.utilboxPath, path));
         // Remove the first line with the total amount
         shellResult.getOut().remove(0);
+        final String relativeParent = parent != null ? parent : "";
         ArrayList<FileInfo> result = shellResult.getOut().stream()
                 .filter(line -> !line.isEmpty())
                 .filter(line -> !line.startsWith("total"))
-                .filter(line -> ShellHandler.splitWithoutEmptyValues(line, " ", 0).length < 7 )
-                .map(line -> FileInfo.fromLsOOutput(line, parent))
+                .filter(line -> ShellHandler.splitWithoutEmptyValues(line, " ", 0).length > 7 )
+                .map(line -> FileInfo.fromLsOOutput(line, relativeParent, path))
                 .collect(Collectors.toCollection(ArrayList::new));
         if (recursive) {
             FileInfo[] directories = result.stream()
@@ -102,10 +111,10 @@ public class ShellHandler {
                     .toArray(FileInfo[]::new);
             for (FileInfo dir : directories) {
                 result.addAll(this.suGetDetailedDirectoryContents(
-                        new File(dir.filepath).getAbsolutePath(),
+                        dir.getAbsolutePath(),
                         true,
-                        parent + '/' + dir.getFilename())
-                );
+                        parent != null ? parent + '/' + dir.getFilename() : dir.getFilename()
+                ));
             }
         }
         return result;
@@ -153,11 +162,65 @@ public class ShellHandler {
 
     static String[] splitWithoutEmptyValues(String str, String regex, int limit){
         String[] split = Arrays.stream(str.split(regex)).filter(s -> !s.isEmpty()).toArray(String[]::new);
-        int targetSize = limit > 0 ? Math.min(split.length, limit) : split.length;
+        // add one to the limit because limit is not meant to count from zero
+        int targetSize = limit > 0 ? Math.min(split.length, limit + 1) : split.length;
         String[] result = new String[targetSize];
         System.arraycopy(split, 0, result, 0, targetSize);
+        for(int i = targetSize; i < split.length; i++){
+            result[result.length - 1] += String.format("%s%s", regex, split[i]);
+        }
         return result;
     }
+
+    public static boolean isFileNotFoundException(@NotNull ShellCommandFailedException ex){
+        List<String> err = ex.getShellResult().getErr();
+        return (!err.isEmpty() && err.get(0).toLowerCase().contains("no such file or directory"));
+    }
+
+    @SuppressWarnings("resource")
+    public static void quirkLibsuReadFileWorkaround(FileInfo inputFile, OutputStream output) throws IOException {
+        final short maxRetries = 10;
+        SuRandomAccessFile in = SuRandomAccessFile.open(inputFile.getAbsolutePath(), "r");
+        byte[] buf = new byte[TarUtils.BUFFERSIZE];
+        long readOverall = 0;
+        int retriesLeft = maxRetries;
+        while (true) {
+            int read = in.read(buf);
+            if (0 > read && inputFile.getFilesize() > readOverall) {
+                // For some reason, SuFileInputStream throws eof much to early on slightly bigger files
+                // This workaround detects the unfinished file like the tar archive does (it tracks
+                // the written amount of bytes, too because it needs to match the header)
+                // As side effect the archives slightly differ in size because of the flushing mechanism.
+                if (0 >= retriesLeft) {
+                    Log.e(ShellHandler.TAG, String.format(
+                            "Could not recover after %d tries. Seems like there is a bigger issue. Maybe the file has changed?", maxRetries));
+                    throw new IOException(String.format(
+                            "Could not read expected amount of input bytes %d; stopped after %d tries at %d",
+                            inputFile.getFilesize(), maxRetries, readOverall
+                    ));
+                }
+                Log.w(ShellHandler.TAG, String.format(
+                        "SuFileInputStream EOF before expected after %d bytes (%d are missing). Trying to recover. %d retries lef",
+                        readOverall, inputFile.getFilesize() - readOverall, retriesLeft
+                ));
+                // Reopen the file to reset eof flag
+                in.close();
+                in = SuRandomAccessFile.open(inputFile.getAbsolutePath(), "r");
+                in.seek(readOverall);
+                // Reduce the retries
+                retriesLeft--;
+                continue;
+            }
+            if (0 > read) {
+                break;
+            }
+            output.write(buf, 0, read);
+            readOverall += read;
+            // successful write, resetting retries
+            retriesLeft = maxRetries;
+        }
+    }
+
 
     public interface RunnableShellCommand {
         Shell.Job runCommand(String... commands);
@@ -212,12 +275,24 @@ public class ShellHandler {
         private final String filepath;
         private final FileType filetype;
         private final String absolutePath;
+        private final String owner;
+        private final String group;
+        private final long filesize;
         private String linkName;
 
-        protected FileInfo(@NotNull String filepath, @NotNull FileType filetype, @NotNull String absoluteParent) {
+        protected FileInfo(
+                @NotNull final String filepath,
+                @NotNull final FileType filetype,
+                @NotNull final String absoluteParent,
+                @NotNull final String owner,
+                @NotNull final String group,
+                final long filesize) {
             this.filepath = filepath;
             this.filetype = filetype;
             this.absolutePath = absoluteParent + '/' + new File(filepath).getName();
+            this.owner = owner;
+            this.group = group;
+            this.filesize = filesize;
         }
 
         /**
@@ -232,9 +307,17 @@ public class ShellHandler {
             // [0] Filemode, [1] number of directories/links inside, [2] owner [3] group [4] size
             // [5] mdate, [6] mtime, [7] filename
             String[] tokens = ShellHandler.splitWithoutEmptyValues(lsLine, " ", 7);
+            String filepath;
+            final String owner = tokens[2];
+            final String group = tokens[3];
+            if(parentPath == null || parentPath.isEmpty()){
+                filepath = tokens[7];
+            }else {
+                filepath = parentPath + '/' + tokens[7];
+            }
+            long fileSize = 0;
             FileType type;
             String linkName = null;
-            String filepath = parentPath + '/' + tokens[7];
             switch (tokens[0].charAt(0)) {
                 case 'd':
                     type = FileType.DIRECTORY; break;
@@ -252,10 +335,13 @@ public class ShellHandler {
                     type = FileType.BLOCK_DEVICE; break;
                 case 'c':
                     type = FileType.CHAR_DEVICE; break;
+                case '-':
                 default:
-                    type = FileType.REGULAR_FILE; break;
+                    type = FileType.REGULAR_FILE;
+                    fileSize = Long.parseLong(tokens[4]);
+                    break;
             }
-            FileInfo result = new FileInfo(filepath, type, absoluteParent);
+            FileInfo result = new FileInfo(filepath, type, absoluteParent, owner, group, fileSize);
             result.linkName = linkName;
             return result;
         }
@@ -287,6 +373,30 @@ public class ShellHandler {
 
         public String getLinkName() {
             return this.linkName;
+        }
+
+        public String getOwner(){
+            return this.owner;
+        }
+
+        public String getGroup(){
+            return this.group;
+        }
+
+        public long getFilesize(){
+            return this.filesize;
+        }
+
+        @NotNull
+        @Override
+        public String toString() {
+            return "FileInfo{" +
+                    "filepath='" + this.filepath + '\'' +
+                    ", filetype=" + this.filetype +
+                    ", filesize=" + this.filesize +
+                    ", absolutePath='" + this.absolutePath + '\'' +
+                    ", linkName='" + this.linkName + '\'' +
+                    '}';
         }
     }
 }

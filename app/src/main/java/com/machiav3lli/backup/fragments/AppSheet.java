@@ -179,9 +179,9 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         this.binding.label.setText(appInfo.getPackageLabel());
         this.binding.packageName.setText(this.app.getPackageName());
         if (appInfo.isSystem()) {
-            this.binding.appType.setText(R.string.systemApp);
+            this.binding.appType.setText(R.string.apptype_system);
         } else {
-            this.binding.appType.setText(R.string.userApp);
+            this.binding.appType.setText(R.string.apptype_user);
         }
         // Todo: Implement Special Type
         /*if (appInfo.isSpecial()) {
