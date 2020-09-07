@@ -65,11 +65,11 @@ public class AppInfoV2 {
         }
     }
 
-    public AppInfoV2(Context context, @NotNull Uri backupDir) {
+    public AppInfoV2(Context context, @NotNull Uri packageBackupRoot) {
         this.context = context;
-        this.packageName = backupDir.getLastPathSegment();
-        this.backupDir = backupDir;
-        this.backupHistory = AppInfoV2.getBackupHistory(context, backupDir);
+        this.backupDir = packageBackupRoot;
+        this.backupHistory = AppInfoV2.getBackupHistory(context, packageBackupRoot);
+        this.packageName = StorageFile.fromUri(context, this.backupDir).getName();
 
         try {
             this.packageInfo = context.getPackageManager().getPackageInfo(this.packageName, 0);
@@ -83,7 +83,7 @@ public class AppInfoV2 {
         }
     }
 
-    public AppInfoV2(Context context, PackageInfo packageInfo, Uri backupDir) {
+    public AppInfoV2(Context context, PackageInfo packageInfo, Uri backupRoot) {
         this.context = context;
         this.packageName = packageInfo.packageName;
         this.packageInfo = packageInfo;
@@ -185,7 +185,7 @@ public class AppInfoV2 {
         return this.packageInfo.applicationInfo.deviceProtectedDataDir;
     }
 
-    public String getExternalDataDir(){
+    public String getExternalDataDir() {
         // Uses the context to get own external data directory
         // e.g. /storage/emulated/0/Android/data/com.machiav3lli.backup/files
         // Goes to the parent two times to the leave own directory
@@ -195,7 +195,8 @@ public class AppInfoV2 {
         // package name and has a prefix or a suffix to use it.
         return new File(externalFilesPath, new File(this.getDataDir()).getName()).getAbsolutePath();
     }
-    public String getObbFilesDir(){
+
+    public String getObbFilesDir() {
         // Uses the context to get own obb data directory
         // e.g. /storage/emulated/0/Android/obb/com.machiav3lli.backup
         // Goes to the parent two times to the leave own directory

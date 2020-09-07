@@ -40,23 +40,27 @@ public final class DocumentHelper {
         return dir;
     }
 
-    public static void deleteRecursive(Context context, Uri uri) throws FileNotFoundException {
+    public static boolean deleteRecursive(Context context, Uri uri){
         StorageFile target = StorageFile.fromUri(context, uri);
-        if (!target.exists()) {
-            throw new FileNotFoundException("File does not exist: " + uri);
-        }
-        DocumentHelper.deleteRecursive(target);
+        return DocumentHelper.deleteRecursive(target);
     }
 
-    public static void deleteRecursive(StorageFile target) {
+    public static boolean deleteRecursive(StorageFile target) {
         if (target.isFile()) {
             target.delete();
-        } else if (target.isDirectory()) {
-            StorageFile[] contents = target.listFiles();
-            for (StorageFile file : contents) {
-                DocumentHelper.deleteRecursive(file);
+            return true;
+        }
+        if (target.isDirectory()) {
+            try {
+                StorageFile[] contents = target.listFiles();
+                for (StorageFile file : contents) {
+                    return DocumentHelper.deleteRecursive(file);
+                }
+            } catch (FileNotFoundException e) {
+                return false;
             }
         }
+        return false;
     }
 
     public static void suRecursiveCopyFileToDocument(Context context, List<ShellHandler.FileInfo> filesToBackup, Uri targetUri) throws IOException {
@@ -79,13 +83,12 @@ public final class DocumentHelper {
     }
 
     /**
-     *
      * Note: This method is bugged, because libsu file might set eof flag in the middle of the file
-     *          Use the method with the ShellHandler.FileInfo object as parameter instead
+     * Use the method with the ShellHandler.FileInfo object as parameter instead
      *
-     * @param resolver ContentResolver context to use
+     * @param resolver   ContentResolver context to use
      * @param sourcePath filepath to open and read from
-     * @param targetDir file to write the contents to
+     * @param targetDir  file to write the contents to
      * @throws IOException on I/O related errors or FileNotFoundException
      */
     public static void suCopyFileToDocument(ContentResolver resolver, String sourcePath, StorageFile targetDir) throws IOException {

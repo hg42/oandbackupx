@@ -42,17 +42,17 @@ public class BackupItem {
             );
         }
         try {
-            try (BufferedReader reader = FileUtils.openFileForReading(context, backupInstance.getUri())) {
-                this.backupProperties = BackupProperties.fromGson(backupInstance.getUri(), IOUtils.toString(reader));
+            try (BufferedReader reader = FileUtils.openFileForReading(context, propertiesFile.getUri())) {
+                this.backupProperties = BackupProperties.fromGson(propertiesFile.getUri(), IOUtils.toString(reader));
             }
         } catch (FileNotFoundException e) {
             throw new BrokenBackupException(String.format("Cannot open %s at URI %s",
                     BackupProperties.PROPERTIES_FILENAME,
-                    backupInstance.getUri()), e);
+                    propertiesFile.getUri()), e);
         } catch (IOException e) {
             throw new BrokenBackupException(String.format("Cannot read %s at URI %s",
                     BackupProperties.PROPERTIES_FILENAME,
-                    backupInstance.getUri()), e);
+                    propertiesFile.getUri()), e);
         }
     }
 

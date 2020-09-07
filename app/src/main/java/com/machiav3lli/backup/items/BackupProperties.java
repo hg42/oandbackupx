@@ -7,37 +7,50 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
+import com.machiav3lli.backup.utils.GsonUtil;
 
 import org.jetbrains.annotations.NotNull;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 public class BackupProperties extends AppMetaInfo implements Parcelable {
 
     public static final String PROPERTIES_FILENAME = "backup.properties";
 
     @SerializedName("backupDate")
+    @Expose
     private LocalDateTime backupDate;
 
     @SerializedName("hasApk")
+    @Expose
     private boolean hasApk;
 
     @SerializedName("hasAppData")
+    @Expose
     private boolean hasAppData;
 
     @SerializedName("hasDevicesProtectedData")
+    @Expose
     private boolean hasDevicesProtectedData;
 
     @SerializedName("hasExternalData")
+    @Expose
     private boolean hasExternalData;
 
     @SerializedName("hasObbData")
+    @Expose
     private boolean hasObbData;
 
     @SerializedName("cipherType")
+    @Expose
     private String cipherType;
 
+    @Expose(serialize = false, deserialize = false)
     private Uri backupLocation;
 
     public BackupProperties(Uri backupLocation, Context context, PackageInfo pi, LocalDateTime backupDate,
@@ -130,14 +143,13 @@ public class BackupProperties extends AppMetaInfo implements Parcelable {
     };
 
     public static BackupProperties fromGson(Uri backupLocation, String gson) {
-        BackupProperties result = new Gson().fromJson(gson, BackupProperties.class);
+        BackupProperties result = GsonUtil.getInstance().fromJson(gson, BackupProperties.class);
         result.setBackupLocation(backupLocation);
         return result;
     }
 
     public String toGson() {
-        Gson gson = new Gson();
-        return gson.toJson(this);
+        return GsonUtil.getInstance().toJson(this);
     }
 
     public LocalDateTime getBackupDate() {
