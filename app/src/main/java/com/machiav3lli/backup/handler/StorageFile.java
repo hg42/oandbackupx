@@ -66,15 +66,22 @@ public class StorageFile {
 
     @Nullable
     public StorageFile findFile(@NonNull String displayName) {
-        for (StorageFile doc : this.listFiles()) {
-            if (displayName.equals(doc.getName())) {
-                return doc;
+        try {
+            for (StorageFile doc : this.listFiles()) {
+                if (displayName.equals(doc.getName())) {
+                    return doc;
+                }
             }
+        } catch (FileNotFoundException e) {
+            return null;
         }
         return null;
     }
 
-    public StorageFile[] listFiles() {
+    public StorageFile[] listFiles() throws FileNotFoundException {
+        if(!this.exists()){
+            throw new FileNotFoundException("File " + this.uri + " does not exist");
+        }
         final ContentResolver resolver = this.context.getContentResolver();
         final Uri childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(this.uri,
                 DocumentsContract.getDocumentId(this.uri));

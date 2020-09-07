@@ -40,11 +40,9 @@ public class BackupBuilder {
         // root/packageName/userId/dateTimeStr
         return DocumentHelper.ensureDirectory(
                 DocumentHelper.ensureDirectory(
-                        DocumentHelper.ensureDirectory(
-                                StorageFile.fromUri(this.context, backupRoot),
-                                this.appinfo.getPackageName()
-                        ),
-                        String.valueOf(this.appinfo.getProfileId())),
+                        StorageFile.fromUri(this.context, backupRoot),
+                        String.valueOf(this.appinfo.getProfileId())
+                ),
                 dateTimeStr);
     }
 

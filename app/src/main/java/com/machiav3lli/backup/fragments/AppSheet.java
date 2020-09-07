@@ -117,7 +117,6 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         binding = null;
     }
 
-    @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         binding = SheetAppBinding.inflate(inflater, container, false);
@@ -142,15 +141,15 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
 
     private void setupChips(boolean update) {
         if (this.app.hasBackups()) {
-            UIUtils.setVisibility(this.binding.delete, View.GONE, update);
-            UIUtils.setVisibility(this.binding.share, View.GONE, update);
-            UIUtils.setVisibility(this.binding.restore, View.GONE, update);
-        } else {
             UIUtils.setVisibility(this.binding.delete, View.VISIBLE, update);
             UIUtils.setVisibility(this.binding.share, View.VISIBLE, update);
             // Todo: Verify the effect
             // UIUtils.setVisibility(this.binding.restore, app.getBackupMode() == AppInfo.MODE_UNSET ? View.GONE : View.VISIBLE, update);
             UIUtils.setVisibility(this.binding.restore, View.VISIBLE, update);
+        } else {
+            UIUtils.setVisibility(this.binding.delete, View.GONE, update);
+            UIUtils.setVisibility(this.binding.share, View.GONE, update);
+            UIUtils.setVisibility(this.binding.restore, View.GONE, update);
         }
         if (this.app.isInstalled()) {
             UIUtils.setVisibility(this.binding.enablePackage, this.app.isDisabled() ? View.VISIBLE : View.GONE, update);
@@ -245,7 +244,7 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
             }
 
             UIUtils.setVisibility(this.binding.encryptedLine, View.VISIBLE, update);
-            if (backupProperties.getCipherType().isEmpty()) {
+            if (backupProperties.getCipherType() == null || backupProperties.getCipherType().isEmpty()) {
                 this.binding.encrypted.setText(R.string.dialogNo);
             } else {
                 this.binding.encrypted.setText(backupProperties.getCipherType());
