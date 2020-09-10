@@ -17,20 +17,16 @@
  */
 package com.machiav3lli.backup.handler.action;
 
-import android.app.ActivityManager;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
 
-import androidx.documentfile.provider.DocumentFile;
-
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.handler.Crypto;
 import com.machiav3lli.backup.handler.ShellHandler;
+import com.machiav3lli.backup.handler.StorageFile;
 import com.machiav3lli.backup.handler.TarUtils;
 import com.machiav3lli.backup.items.ActionResult;
 import com.machiav3lli.backup.items.AppInfo;
@@ -41,7 +37,6 @@ import com.machiav3lli.backup.utils.PrefUtils;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
-import org.apache.commons.io.FileUtils;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.BufferedInputStream;
@@ -115,30 +110,40 @@ public class RestoreAppAction extends BaseAppAction {
     }
 
     public void restorePackage(Uri backupLocation, BackupProperties backupProperties) throws RestoreFailedException {
-        DocumentFile backupDir = DocumentFile.fromTreeUri(this.getContext(), backupLocation);
+        final String packageName = backupProperties.getPackageName();
+        Log.i(TAG, String.format("[%s] Restoring from %s", packageName, backupLocation.getEncodedPath()));
+        StorageFile backupDir = StorageFile.fromUri(this.getContext(), backupLocation);
 
-        DocumentFile baseApk = backupDir.findFile(RestoreAppAction.BASEAPKFILENAME);
+        StorageFile baseApk = backupDir.findFile(RestoreAppAction.BASEAPKFILENAME);
+        Log.d(TAG, String.format("[%s] Found %s in backup archive", packageName, RestoreAppAction.BASEAPKFILENAME));
         if (baseApk == null) {
             throw new RestoreFailedException(RestoreAppAction.BASEAPKFILENAME + " is missing in backup", null);
         }
 
-        DocumentFile[] splitApksInBackup = Arrays.stream(backupDir.listFiles())
-                .filter(dir -> !dir.isDirectory()) // Forget about dictionaries immediately
-                .filter(dir -> !dir.getName().endsWith(".apk")) // Only apks are relevant
-                .filter(dir -> !dir.getName().equals(RestoreAppAction.BASEAPKFILENAME)) // Base apk is a special case
-                .toArray(DocumentFile[]::new);
+        StorageFile[] splitApksInBackup;
+        try {
+            splitApksInBackup = Arrays.stream(backupDir.listFiles())
+                    .filter(dir -> !dir.isDirectory()) // Forget about dictionaries immediately
+                    .filter(dir -> dir.getName().endsWith(".apk")) // Only apks are relevant
+                    .filter(dir -> !dir.getName().equals(RestoreAppAction.BASEAPKFILENAME)) // Base apk is a special case
+                    .toArray(StorageFile[]::new);
+        } catch (FileNotFoundException e) {
+            String message = String.format("Restore APKs failed: %s", e.getMessage());
+            Log.e(RestoreAppAction.TAG, message);
+            throw new RestoreFailedException(message, e);
+        }
 
-        // Todo: Remove this
-        DocumentFile[] apksToRestore;
+        // Copy all apk paths into a single array
+        StorageFile[] apksToRestore;
         if (splitApksInBackup.length == 0) {
-            apksToRestore = new DocumentFile[]{baseApk};
+            apksToRestore = new StorageFile[]{baseApk};
+            Log.d(TAG, String.format("[%s] The backup does not contain split apks", packageName));
         } else {
-            apksToRestore = new DocumentFile[1 + splitApksInBackup.length];
+            apksToRestore = new StorageFile[1 + splitApksInBackup.length];
             apksToRestore[0] = baseApk;
             System.arraycopy(splitApksInBackup, 0, apksToRestore, 1, splitApksInBackup.length);
             Log.i(RestoreAppAction.TAG, String.format("Package is splitted into %d apks", apksToRestore.length));
         }
-        // --- REMOVE END
         /* in newer android versions selinux rules prevent system_server
          * from accessing many directories. in android 9 this prevents pm
          * install from installing from other directories that the package
@@ -170,11 +175,14 @@ public class RestoreAppAction extends BaseAppAction {
                     "installing from oabxs own data directory. Copying the apk to " + stagingApkPath);
         }
 
+        boolean success = false;
         try {
-            String command;
             // Try it with a staging path. This is usually the way to go.
             // copy apks to staging dir
-            for (DocumentFile apkDoc : apksToRestore) {
+            for (StorageFile apkDoc : apksToRestore) {
+                // The file must be touched before it can be written for some reason...
+                Log.d(TAG, String.format("[%s] Copying %s to staging dir", packageName, apkDoc.getName()));
+                ShellHandler.runAsRoot("touch '" + new File(stagingApkPath, apkDoc.getName()).getAbsolutePath() + '\'');
                 DocumentHelper.suCopyFileFromDocument(
                         this.getContext().getContentResolver(),
                         apkDoc.getUri(),
@@ -186,7 +194,7 @@ public class RestoreAppAction extends BaseAppAction {
             sb.append(this.getPackageInstallCommand(new File(stagingApkPath, baseApk.getName())));
             // If split apk resources exist, install them afterwards (order does not matter)
             if (splitApksInBackup.length > 0) {
-                for (DocumentFile apk : splitApksInBackup) {
+                for (StorageFile apk : splitApksInBackup) {
                     sb.append(" && ").append(
                             this.getPackageInstallCommand(new File(stagingApkPath, apk.getName()), backupProperties.getPackageName()));
                 }
@@ -197,15 +205,30 @@ public class RestoreAppAction extends BaseAppAction {
             sb.append(String.format(" && %s rm %s", this.getShell().getUtilboxPath(),
                     Arrays.stream(apksToRestore).map(s -> '"' + finalStagingApkPath.getAbsolutePath() + '/' + s.getName() + '"').collect(Collectors.joining(" "))
             ));
-            command = sb.toString();
+            String command = sb.toString();
             ShellHandler.runAsRoot(command);
-            // Todo: Reload package data; Implement function for it
+            success = true;
+            // Todo: Reload package meta data; Package Manager knows everything now; Function missing
         } catch (ShellHandler.ShellCommandFailedException e) {
             String error = BaseAppAction.extractErrorMessage(e.getShellResult());
             Log.e(RestoreAppAction.TAG, String.format("Restore APKs failed: %s", error));
             throw new RestoreFailedException(error, e);
         } catch (IOException e) {
             throw new RestoreFailedException("Could not copy apk to staging directory", e);
+        }finally{
+            // Cleanup only in case of failure, otherwise it's already included
+            if(!success) {
+                Log.i(TAG, String.format("[%s] Restore unsuccessful. Removing possible leftovers in staging directory", packageName));
+                final File stagingPath = stagingApkPath;
+                String command = Arrays.stream(apksToRestore)
+                        .map(apkDoc -> String.format("rm '%s'", new File(stagingPath, apkDoc.getName()).getAbsolutePath())).collect(Collectors.joining("; "));
+                try {
+                    ShellHandler.runAsRoot(command);
+                } catch (ShellHandler.ShellCommandFailedException e) {
+                    String error = String.format("[%s] Cleanup after failure failed: %s", packageName, String.join("; ", e.getShellResult().getErr()));
+                    Log.w(TAG, error);
+                }
+            }
         }
     }
 
@@ -221,7 +244,7 @@ public class RestoreAppAction extends BaseAppAction {
         }
     }
 
-    protected TarArchiveInputStream openArchiveFile(Uri archiveUri, boolean isEncrypted) throws Crypto.CryptoSetupException, IOException, FileNotFoundException {
+    protected TarArchiveInputStream openArchiveFile(Uri archiveUri, boolean isEncrypted) throws Crypto.CryptoSetupException, IOException {
         InputStream inputStream = new BufferedInputStream(this.getContext().getContentResolver().openInputStream(archiveUri));
         if (isEncrypted) {
             String password = PrefUtils.getDefaultSharedPreferences(this.getContext()).getString(Constants.PREFS_PASSWORD, "");
