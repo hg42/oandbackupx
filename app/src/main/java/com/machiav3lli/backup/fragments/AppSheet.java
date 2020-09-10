@@ -293,6 +293,7 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
                 Bundle arguments = new Bundle();
                 arguments.putParcelable("appinfo", this.app.getAppInfo());
                 arguments.putParcelable("backup", properties);
+                arguments.putBoolean("isInstalled", this.app.isInstalled());
                 RestoreDialogFragment dialog = new RestoreDialogFragment(fragment);
                 dialog.setArguments(arguments);
                 dialog.show(requireActivity().getSupportFragmentManager(), "restoreDialog");
