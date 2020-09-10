@@ -20,6 +20,7 @@ package com.machiav3lli.backup.utils;
 import android.app.Activity;
 import android.app.AppOpsManager;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
@@ -32,6 +33,7 @@ import androidx.preference.PreferenceManager;
 
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.handler.Crypto;
+import com.machiav3lli.backup.handler.StorageFile;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -45,6 +47,8 @@ public class PrefUtils {
     public static final String BACKUP_SUBDIR_NAME = "OABXNG";
     public static final int READ_PERMISSION = 2;
     public static final int WRITE_PERMISSION = 3;
+    public static final int STATS_PERMISSION = 4;
+    public static final int BACKUP_DIR = 5;
 
     public static byte[] getCryptoSalt(Context context) {
         String userSalt = getDefaultSharedPreferences(context).getString(Constants.PREFS_SALT, "");
@@ -69,13 +73,14 @@ public class PrefUtils {
     /**
      * Returns the user selected location. Go for `FileUtil.getBackupDir` to get the actual
      * backup dir's path
+     *
      * @param context application context
      * @return user configured location
      * @throws StorageLocationNotConfiguredException if the value is not set
      */
     public static String getStorageRootDir(Context context) throws StorageLocationNotConfiguredException {
         String location = PrefUtils.getPrivateSharedPrefs(context).getString(Constants.PREFS_PATH_BACKUP_DIRECTORY, "");
-        if(location.isEmpty()){
+        if (location.isEmpty()) {
             throw new StorageLocationNotConfiguredException();
         }
         return location;
@@ -84,16 +89,21 @@ public class PrefUtils {
     public static void setStorageRootDir(Context context, Uri value) {
         Uri fullUri = DocumentsContract.buildDocumentUriUsingTree(value, DocumentsContract.getTreeDocumentId(value));
         PrefUtils.getPrivateSharedPrefs(context)
-                        .edit()
-                        .putString(Constants.PREFS_PATH_BACKUP_DIRECTORY, fullUri.toString())
-                        .apply();
+                .edit()
+                .putString(Constants.PREFS_PATH_BACKUP_DIRECTORY, fullUri.toString())
+                .apply();
         FileUtils.invalidateBackupLocation();
     }
 
 
-    public static boolean isStorageDirSet(Context context) {
+    public static boolean isStorageDirSetAndOk(Context context) {
         try {
-            return !PrefUtils.getStorageRootDir(context).isEmpty();
+            String storageDirPath = PrefUtils.getStorageRootDir(context);
+            if (storageDirPath.isEmpty()) {
+                return false;
+            }
+            StorageFile storageDir = StorageFile.fromUri(context, Uri.parse(storageDirPath));
+            return storageDir.exists();
         } catch (StorageLocationNotConfiguredException e) {
             return false;
         }
@@ -107,13 +117,9 @@ public class PrefUtils {
         return context.getSharedPreferences(Constants.PREFS_SHARED_PRIVATE, Context.MODE_PRIVATE);
     }
 
-
-    public static class StorageLocationNotConfiguredException extends Exception {
-
-        public StorageLocationNotConfiguredException() {
-            super("Storage Location has not been configured");
-        }
-
+    public static void requireStorageLocation(Activity activity){
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        activity.startActivityForResult(intent, PrefUtils.BACKUP_DIR);
     }
 
     public static boolean checkStoragePermissions(Context context) {
@@ -155,5 +161,13 @@ public class PrefUtils {
 
     public static boolean checkBatteryOptimization(Context context, SharedPreferences prefs, PowerManager powerManager) {
         return prefs.getBoolean(Constants.PREFS_IGNORE_BATTERY_OPTIMIZATION, false) || powerManager.isIgnoringBatteryOptimizations(context.getPackageName());
+    }
+
+    public static class StorageLocationNotConfiguredException extends Exception {
+
+        public StorageLocationNotConfiguredException() {
+            super("Storage Location has not been configured");
+        }
+
     }
 }

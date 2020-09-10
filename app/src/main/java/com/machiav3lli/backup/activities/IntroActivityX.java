@@ -74,7 +74,18 @@ public class IntroActivityX extends BaseActivity {
                     break;
                 }
                 case R.id.permissionsFragment: {
-                    binding.positiveButton.setVisibility(View.GONE);
+                    this.handlePermissionsFragment();
+                    break;
+                }
+                case R.id.optimizationsFragment: {
+                    if (!PrefUtils.checkUsageStatsPermission(this)) {
+                        binding.positiveButton.setText(R.string.grant_usage_access_title);
+                        binding.positiveButton.setVisibility(View.VISIBLE);
+                        binding.positiveButton.setOnClickListener(v -> getUsageStatsPermission());
+                    } else {
+                        binding.positiveButton.setVisibility(View.GONE);
+                        moveTo(4);
+                    }
                     PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
                     if (PrefUtils.checkStoragePermissions(this) &&
                             PrefUtils.checkUsageStatsPermission(this) &&
@@ -99,6 +110,29 @@ public class IntroActivityX extends BaseActivity {
                 binding.positiveButton.setOnClickListener(view -> launchMainActivity());
                 launchMainActivity();
                 break;
+        }
+    }
+
+    private void handlePermissionsFragment(){
+        boolean storagePermissionGranted = PrefUtils.checkStoragePermissions(this);
+        boolean storageDirOk = PrefUtils.isStorageDirSetAndOk(this);
+        if (!storagePermissionGranted) {
+            this.binding.positiveButton.setText(R.string.ask_for_permissions);
+            this.binding.positiveButton.setOnClickListener(view -> PrefUtils.getStoragePermission(this));
+            this.binding.positiveButton.setVisibility(View.VISIBLE);
+        } else {
+            this.binding.positiveButton.setVisibility(View.GONE);
+        }
+        if (!storageDirOk) {
+            this.binding.negativeButton.setText("Select Backup Folder Location");   // Todo: Move this to strings.xml
+            this.binding.negativeButton.setOnClickListener(view -> PrefUtils.requireStorageLocation(this));
+            this.binding.negativeButton.setVisibility(View.VISIBLE);
+        } else {
+            this.binding.negativeButton.setVisibility(View.GONE);
+        }
+
+        if (storagePermissionGranted && storageDirOk) {
+            this.moveTo(3);
         }
     }
 
@@ -135,6 +169,11 @@ public class IntroActivityX extends BaseActivity {
         }
     }
 
+    private void requestStorageLocation() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        this.startActivityForResult(intent, PrefUtils.BACKUP_DIR);
+    }
+
     private void launchBiometricPrompt() {
         BiometricPrompt biometricPrompt = createBeometricPrompt(this);
         BiometricPrompt.PromptInfo promptInfo = new BiometricPrompt.PromptInfo.Builder()
@@ -164,5 +203,51 @@ public class IntroActivityX extends BaseActivity {
                 }
             }
         });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        if (requestCode == PrefUtils.WRITE_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PERMISSION_GRANTED) {
+                if (!PrefUtils.canAccessExternalStorage(this)) {
+                    Log.w(IntroActivityX.TAG, String.format("Permissions were granted: %s -> %s",
+                            Arrays.toString(permissions), Arrays.toString(grantResults)));
+                    Toast.makeText(this, "Permissions were granted but because of an android bug you have to restart your phone",
+                            Toast.LENGTH_LONG).show();
+                } else {
+                    moveTo(3);
+                }
+            } else {
+                Log.w(IntroActivityX.TAG, String.format("Permissions were not granted: %s -> %s",
+                        Arrays.toString(permissions), Arrays.toString(grantResults)));
+                Toast.makeText(this, getString(R.string.permission_not_granted), Toast.LENGTH_LONG).show();
+            }
+        } else {
+            Log.w(IntroActivityX.TAG, String.format("Unknown permissions request code: %s", requestCode));
+        }
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (requestCode) {
+            case PrefUtils.STATS_PERMISSION:
+                if (PrefUtils.checkUsageStatsPermission(this)) {
+                    if (PrefUtils.checkStoragePermissions(this)) {
+                        moveTo(4);
+                    }
+                } else {
+                    finishAffinity();
+                }
+                break;
+            case PrefUtils.BACKUP_DIR:
+                Uri uri = data.getData();
+                if (resultCode == Activity.RESULT_OK) {
+                    PrefUtils.setStorageRootDir(this, uri);
+                }
+                this.handlePermissionsFragment();
+                break;
+        }
     }
 }
