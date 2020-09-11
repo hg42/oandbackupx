@@ -82,16 +82,22 @@ public class RestoreAppAction extends BaseAppAction {
     }
 
     protected void restoreAllData(AppInfoV2 app, BackupProperties backupProperties, Uri backupLocation) throws Crypto.CryptoSetupException, RestoreFailedException {
-        this.restoreData(app, backupProperties, backupLocation);
+        Log.i(TAG, String.format("[%s] Restoring app's data", backupProperties.getPackageName()));
+        StorageFile backupDir = StorageFile.fromUri(this.getContext(), backupLocation);
+        this.restoreData(app, backupProperties, backupDir);
         SharedPreferences prefs = PrefUtils.getDefaultSharedPreferences(this.getContext());
         if (prefs.getBoolean(Constants.PREFS_EXTERNALDATA, true)) {
-            this.restoreExternalData(app, backupProperties, backupLocation);
+            Log.i(TAG, String.format("[%s] Restoring app's external data", backupProperties.getPackageName()));
+            this.restoreExternalData(app, backupProperties, backupDir);
         }
+        // Careful! This is again external data! It's the same configuration parameter!
         if (prefs.getBoolean(Constants.PREFS_EXTERNALDATA, true)) {
-            this.restoreObbData(app, backupProperties, backupLocation);
+            Log.i(TAG, String.format("[%s] Restoring app's obb data", backupProperties.getPackageName()));
+            this.restoreObbData(app, backupProperties, backupDir);
         }
         if (prefs.getBoolean(Constants.PREFS_DEVICEPROTECTEDDATA, true)) {
-            this.restoreDeviceProtectedData(app, backupProperties, backupLocation);
+            Log.i(TAG, String.format("[%s] Restoring app's protected data", backupProperties.getPackageName()));
+            this.restoreDeviceProtectedData(app, backupProperties, backupDir);
         }
     }
 
@@ -232,10 +238,14 @@ public class RestoreAppAction extends BaseAppAction {
         }
     }
 
-    private void genericRestoreDataByCopying(final String targetPath, final Uri backupDir, final String what) throws RestoreFailedException {
+    private void genericRestoreDataByCopying(final String targetPath, final Uri backupInstanceRoot, final String what) throws RestoreFailedException {
         try {
-            final Uri backupDirFile = backupDir.buildUpon().appendPath(what).build();
-            DocumentHelper.suRecursiveCopyFileFromDocument(this.getContext(), backupDirFile, targetPath);
+            StorageFile backupDirFile = StorageFile.fromUri(this.getContext(), backupInstanceRoot);
+            StorageFile backupDirToRestore = backupDirFile.findFile(what);
+            if(backupDirToRestore == null){
+                throw new RestoreFailedException("Backup directory " + what + " is missing. Cannot restore");
+            }
+            DocumentHelper.suRecursiveCopyFileFromDocument(this.getContext(), backupDirToRestore.getUri(), targetPath);
         } catch (IOException e) {
             throw new RestoreFailedException("Could not read the input file due to IOException", e);
         } catch (ShellHandler.ShellCommandFailedException e) {
@@ -258,11 +268,12 @@ public class RestoreAppAction extends BaseAppAction {
 
     private void genericRestoreFromArchive(final Uri archiveUri, final String targetDir, boolean isEncrypted) throws RestoreFailedException, Crypto.CryptoSetupException {
         try (TarArchiveInputStream inputStream = this.openArchiveFile(archiveUri, isEncrypted)) {
+            // Todo: Wipe existing data
             TarUtils.suUncompressTo(inputStream, targetDir);
         } catch (FileNotFoundException e) {
             throw new RestoreFailedException("Backup archive at " + archiveUri + " is missing", e);
         } catch (IOException e) {
-            throw new RestoreFailedException("Could not read the input file or write an output file due to IOException", e);
+            throw new RestoreFailedException("Could not read the input file or write an output file due to IOException: " + e, e);
         } catch (ShellHandler.ShellCommandFailedException e) {
             String error = BaseAppAction.extractErrorMessage(e.getShellResult());
             throw new RestoreFailedException("Could not restore a file due to a failed root command: " + error, e);
@@ -300,34 +311,44 @@ public class RestoreAppAction extends BaseAppAction {
         }
     }
 
-    public void restoreData(AppInfoV2 app, BackupProperties backupProperties, Uri backupLocation) throws RestoreFailedException, Crypto.CryptoSetupException {
-
-        this.genericRestoreFromArchive(
-                this.getBackupArchive(backupLocation, BaseAppAction.BACKUP_DIR_DATA, backupProperties.isEncrypted()),
-                app.getDataDir(), backupProperties.isEncrypted());
+    public void restoreData(AppInfoV2 app, BackupProperties backupProperties, StorageFile backupLocation) throws RestoreFailedException, Crypto.CryptoSetupException {
+        final String backupFilename = this.getBackupArchiveFilename(BaseAppAction.BACKUP_DIR_DATA, backupProperties.isEncrypted());
+        Log.d(TAG, String.format("[%s] Extracting %s", backupProperties.getPackageName(), backupFilename));
+        StorageFile backupArchive = backupLocation.findFile(backupFilename);
+        if(backupArchive == null){
+            throw new RestoreFailedException("Backup archive " + backupFilename + " is missing. Cannot restore");
+        }
+        this.genericRestoreFromArchive(backupArchive.getUri(), app.getDataDir(), backupProperties.isEncrypted());
         this.genericRestorePermissions(BaseAppAction.BACKUP_DIR_DATA, new File(app.getDataDir()));
     }
 
-    public void restoreExternalData(AppInfoV2 app, BackupProperties backupProperties, Uri backupLocation) throws RestoreFailedException, Crypto.CryptoSetupException {
-        this.genericRestoreFromArchive(
-                this.getBackupArchive(backupLocation, BaseAppAction.BACKUP_DIR_EXTERNAL_FILES, backupProperties.isEncrypted()),
-                app.getExternalDataDir(), backupProperties.isEncrypted()
-        );
+    public void restoreExternalData(AppInfoV2 app, BackupProperties backupProperties, StorageFile backupLocation) throws RestoreFailedException, Crypto.CryptoSetupException {
+        final String backupFilename = this.getBackupArchiveFilename(BaseAppAction.BACKUP_DIR_EXTERNAL_FILES, backupProperties.isEncrypted());
+        Log.d(TAG, String.format("[%s] Extracting %s", backupProperties.getPackageName(), backupFilename));
+        StorageFile backupArchive = backupLocation.findFile(backupFilename);
+        if(backupArchive == null){
+            throw new RestoreFailedException("Backup archive " + backupFilename + " is missing. Cannot restore");
+        }
+        this.genericRestoreFromArchive(backupArchive.getUri(), app.getDataDir(), backupProperties.isEncrypted());
     }
 
-    public void restoreObbData(AppInfoV2 app, BackupProperties backupProperties, Uri backupLocation) throws RestoreFailedException {
-        this.genericRestoreDataByCopying(app.getObbFilesDir(), backupLocation, BaseAppAction.BACKUP_DIR_OBB_FILES);
+    public void restoreObbData(AppInfoV2 app, BackupProperties backupProperties, StorageFile backupLocation) throws RestoreFailedException {
+        this.genericRestoreDataByCopying(app.getObbFilesDir(), backupLocation.getUri(), BaseAppAction.BACKUP_DIR_OBB_FILES);
     }
 
-    public void restoreDeviceProtectedData(AppInfoV2 app, BackupProperties backupProperties, Uri backupLocation) throws RestoreFailedException, Crypto.CryptoSetupException {
-        this.genericRestoreFromArchive(
-                this.getBackupArchive(backupLocation, BaseAppAction.BACKUP_DIR_DEVICE_PROTECTED_FILES, backupProperties.isEncrypted()),
-                app.getDeviceProtectedDataDir(), backupProperties.isEncrypted()
-        );
+    public void restoreDeviceProtectedData(AppInfoV2 app, BackupProperties backupProperties, StorageFile backupLocation) throws RestoreFailedException, Crypto.CryptoSetupException {
+        final String backupFilename = this.getBackupArchiveFilename(BaseAppAction.BACKUP_DIR_DEVICE_PROTECTED_FILES, backupProperties.isEncrypted());
+        Log.d(TAG, String.format("[%s] Extracting %s", backupProperties.getPackageName(), backupFilename));
+        StorageFile backupArchive = backupLocation.findFile(backupFilename);
+        if(backupArchive == null){
+            throw new RestoreFailedException("Backup archive " + backupFilename + " is missing. Cannot restore");
+        }
+        this.genericRestoreFromArchive(backupArchive.getUri(), app.getDataDir(), backupProperties.isEncrypted());
         this.genericRestorePermissions(
                 BaseAppAction.BACKUP_DIR_DEVICE_PROTECTED_FILES,
                 new File(app.getDeviceProtectedDataDir())
         );
+
     }
 
     /**
@@ -374,6 +395,9 @@ public class RestoreAppAction extends BaseAppAction {
     }
 
     public static class RestoreFailedException extends AppActionFailedException {
+        public RestoreFailedException(String message){
+            super(message);
+        }
         public RestoreFailedException(String message, Throwable cause) {
             super(message, cause);
         }

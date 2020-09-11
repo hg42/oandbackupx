@@ -25,10 +25,12 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.net.Uri;
+import android.os.PowerManager;
 import android.provider.DocumentsContract;
 
 import androidx.biometric.BiometricManager;
 import androidx.core.app.ActivityCompat;
+import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
 
 import com.machiav3lli.backup.Constants;
@@ -117,9 +119,9 @@ public class PrefUtils {
         return context.getSharedPreferences(Constants.PREFS_SHARED_PRIVATE, Context.MODE_PRIVATE);
     }
 
-    public static void requireStorageLocation(Activity activity){
+    public static void requireStorageLocation(Fragment fragment){
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-        activity.startActivityForResult(intent, PrefUtils.BACKUP_DIR);
+        fragment.startActivityForResult(intent, PrefUtils.BACKUP_DIR);
     }
 
     public static boolean checkStoragePermissions(Context context) {

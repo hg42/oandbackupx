@@ -128,8 +128,8 @@ public class BackupAppAction extends BaseAppAction {
     protected void createBackupArchive(Uri backupInstanceDir, String what, List<ShellHandler.FileInfo> allFilesToBackup) throws IOException, Crypto.CryptoSetupException {
         Log.i(BackupAppAction.TAG, String.format("Creating %s backup", what));
         StorageFile backupDir = StorageFile.fromUri(this.getContext(), backupInstanceDir);
-        Uri backupFileUri = this.getBackupArchive(backupInstanceDir, what, PrefUtils.isEncryptionEnabled(this.getContext()));
-        StorageFile backupFile = backupDir.createFile("application/gzip", backupFileUri.getLastPathSegment());
+        String backupFilename = this.getBackupArchiveFilename(what, PrefUtils.isEncryptionEnabled(this.getContext()));
+        StorageFile backupFile = backupDir.createFile("application/gzip", backupFilename);
         String password = PrefUtils.getDefaultSharedPreferences(this.getContext()).getString(Constants.PREFS_PASSWORD, "");
         OutputStream outStream = new BufferedOutputStream(this.getContext().getContentResolver().openOutputStream(backupFile.getUri(), "w"));
         if (!password.isEmpty()) {
@@ -139,7 +139,7 @@ public class BackupAppAction extends BaseAppAction {
             archive.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX);
             TarUtils.suAddFiles(archive, allFilesToBackup);
         } finally {
-            Log.d(BackupAppAction.TAG, "Done compressing. Closing " + backupFileUri.getLastPathSegment());
+            Log.d(BackupAppAction.TAG, "Done compressing. Closing " + backupFilename);
             outStream.close();
         }
     }

@@ -24,8 +24,8 @@ import android.util.Log;
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.handler.Crypto;
 import com.machiav3lli.backup.handler.ShellHandler;
+import com.machiav3lli.backup.handler.StorageFile;
 import com.machiav3lli.backup.handler.TarUtils;
-import com.machiav3lli.backup.items.AppInfo;
 import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.items.BackupProperties;
 import com.machiav3lli.backup.items.SpecialAppMetaInfo;
@@ -59,19 +59,23 @@ public class RestoreSpecialAction extends RestoreAppAction {
 
     @Override
     protected void restoreAllData(AppInfoV2 app, BackupProperties backupProperties, Uri backupLocation) throws Crypto.CryptoSetupException, RestoreFailedException {
-        this.restoreData(app, backupProperties, backupLocation);
+        this.restoreData(app, backupProperties, StorageFile.fromUri(this.getContext(), backupLocation));
     }
 
     @Override
-    public void restoreData(AppInfoV2 app, BackupProperties backupProperties, Uri backupLocation) throws RestoreFailedException, Crypto.CryptoSetupException {
+    public void restoreData(AppInfoV2 app, BackupProperties backupProperties, StorageFile backupLocation) throws RestoreFailedException, Crypto.CryptoSetupException {
         Log.i(RestoreSpecialAction.TAG, String.format("%s: Restore special data", app));
         SpecialAppMetaInfo metaInfo = (SpecialAppMetaInfo) app.getAppInfo();
         File tempPath = new File(this.getContext().getCacheDir(), backupProperties.getPackageName());
 
         boolean isEncrypted = PrefUtils.isEncryptionEnabled(this.getContext());
-        Uri backupArchiveFile = this.getBackupArchive(backupLocation, BaseAppAction.BACKUP_DIR_DATA, isEncrypted);
+        String backupArchiveFilename = this.getBackupArchiveFilename(BaseAppAction.BACKUP_DIR_DATA, isEncrypted);
+        StorageFile backupArchiveFile = backupLocation.findFile(backupArchiveFilename);
+        if (backupArchiveFile == null) {
+            throw new RestoreFailedException("Backup archive at " + backupArchiveFilename + " is missing");
+        }
 
-        try (TarArchiveInputStream archive = this.openArchiveFile(backupArchiveFile, isEncrypted)) {
+        try (TarArchiveInputStream archive = this.openArchiveFile(backupArchiveFile.getUri(), isEncrypted)) {
             tempPath.mkdir();
             // Extract the contents to a temporary directory
             TarUtils.suUncompressTo(archive, tempPath.getAbsolutePath());
@@ -121,17 +125,17 @@ public class RestoreSpecialAction extends RestoreAppAction {
     }
 
     @Override
-    public void restoreDeviceProtectedData(AppInfoV2 app, BackupProperties backupProperties, Uri backupLocation) {
+    public void restoreDeviceProtectedData(AppInfoV2 app, BackupProperties backupProperties, StorageFile backupLocation) {
         // stub
     }
 
     @Override
-    public void restoreExternalData(AppInfoV2 app, BackupProperties backupProperties, Uri backupLocation) {
+    public void restoreExternalData(AppInfoV2 app, BackupProperties backupProperties, StorageFile backupLocation) {
         // stub
     }
 
     @Override
-    public void restoreObbData(AppInfoV2 app, BackupProperties backupProperties, Uri backupLocation) {
+    public void restoreObbData(AppInfoV2 app, BackupProperties backupProperties, StorageFile backupLocation) {
         // stub
     }
 }

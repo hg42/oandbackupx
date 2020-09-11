@@ -221,6 +221,8 @@ public class ShellHandler {
         }
     }
 
+    public static void quirkLibsuWriteFileWorkaround(){}
+
 
     public interface RunnableShellCommand {
         Shell.Job runCommand(String... commands);
