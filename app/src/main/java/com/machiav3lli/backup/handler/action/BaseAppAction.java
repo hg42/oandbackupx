@@ -67,11 +67,8 @@ public abstract class BaseAppAction {
         return this.shell;
     }
 
-    public Uri getBackupArchive(Uri backupInstance, String what, boolean isEncrypted) {
-        return backupInstance
-                .buildUpon()
-                .appendPath(what + ".tar.gz" + (isEncrypted ? ".enc" : ""))
-                .build();
+    public String getBackupArchiveFilename(String what, boolean isEncrypted) {
+        return what + ".tar.gz" + (isEncrypted ? ".enc" : "");
     }
 
     public String prependUtilbox(String command) {
@@ -83,6 +80,9 @@ public abstract class BaseAppAction {
     }
 
     public abstract static class AppActionFailedException extends Exception {
+        protected AppActionFailedException(String message){
+            super(message);
+        }
         protected AppActionFailedException(String message, Throwable cause) {
             super(message, cause);
         }

@@ -66,7 +66,6 @@ public class BatchActivityX extends BaseActivity
         implements BatchConfirmDialog.ConfirmListener, SharedPreferences.OnSharedPreferenceChangeListener {
     private static final String TAG = Constants.classTag(".BatchActivityX");
     private static final int RESULT_OK = 0;
-    private File backupDir;
     private boolean checkboxSelectAllBoolean = false;
     private boolean changesMade;
     private SortFilterSheet sheetSortFilter;
@@ -312,8 +311,6 @@ public class BatchActivityX extends BaseActivity
 
     @Override
     public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
-        if (Constants.PREFS_PATH_BACKUP_DIRECTORY.equals(key))
-            backupDir = FileUtils.getDefaultBackupDir(this, this);
         refresh(false);
     }
 
