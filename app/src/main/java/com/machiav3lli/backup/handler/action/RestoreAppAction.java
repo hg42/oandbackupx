@@ -101,6 +101,19 @@ public class RestoreAppAction extends BaseAppAction {
         }
     }
 
+    protected void wipeDirectory(String targetDirectory, List<String> excludeDirs) throws ShellHandler.ShellCommandFailedException {
+        List<String> targetContents = new ArrayList<>(Arrays.asList(this.getShell().suGetDirectoryContents(new File(targetDirectory))));
+        targetContents.removeAll(excludeDirs);
+        if(targetContents.isEmpty()){
+            Log.i(TAG, "Nothing to remove in " + targetDirectory);
+            return;
+        }
+        String[] removeTargets = targetContents.stream().map(s -> '"' + new File(targetDirectory, s).getAbsolutePath() + '"').toArray(String[]::new);
+        Log.d(RestoreAppAction.TAG, String.format("Removing existing files in %s", targetDirectory));
+        String command = this.prependUtilbox(String.format("rm -rf %s", String.join(" ", removeTargets)));
+        ShellHandler.runAsRoot(command);
+    }
+
     protected void uncompress(File filepath, File targetDir) throws IOException, Crypto.CryptoSetupException {
         String inputFilename = filepath.getAbsolutePath();
         Log.d(RestoreAppAction.TAG, "Opening file for expansion: " + inputFilename);
@@ -268,7 +281,7 @@ public class RestoreAppAction extends BaseAppAction {
 
     private void genericRestoreFromArchive(final Uri archiveUri, final String targetDir, boolean isEncrypted) throws RestoreFailedException, Crypto.CryptoSetupException {
         try (TarArchiveInputStream inputStream = this.openArchiveFile(archiveUri, isEncrypted)) {
-            // Todo: Wipe existing data
+            this.wipeDirectory(targetDir, BaseAppAction.DATA_EXCLUDED_DIRS);
             TarUtils.suUncompressTo(inputStream, targetDir);
         } catch (FileNotFoundException e) {
             throw new RestoreFailedException("Backup archive at " + archiveUri + " is missing", e);
