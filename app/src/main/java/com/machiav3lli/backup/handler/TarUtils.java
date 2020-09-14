@@ -22,10 +22,8 @@ import android.system.Os;
 import android.util.Log;
 
 import com.machiav3lli.backup.Constants;
-import com.topjohnwu.superuser.Shell;
-import com.topjohnwu.superuser.io.SuFileInputStream;
+import com.topjohnwu.superuser.io.SuFile;
 import com.topjohnwu.superuser.io.SuFileOutputStream;
-import com.topjohnwu.superuser.io.SuRandomAccessFile;
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
@@ -37,14 +35,10 @@ import org.apache.commons.io.FileUtils;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 import kotlin.NotImplementedError;
 
@@ -133,12 +127,13 @@ public final class TarUtils {
         TarArchiveEntry tarEntry;
         while ((tarEntry = archive.getNextTarEntry()) != null) {
             final File file = new File(targetDir, tarEntry.getName());
+            Log.d(TAG, "Extracting " + tarEntry.getName());
             if (tarEntry.isDirectory()) {
                 ShellHandler.runAsRoot(String.format("mkdir \"%s\"", file.getAbsolutePath()));
-                TarUtils.suUncompressTo(archive, new File(targetDir, file.getName()).getAbsolutePath());
+                TarUtils.suUncompressTo(archive, targetDir);
             } else if (tarEntry.isFile()) {
-                try (SuFileOutputStream fos = new SuFileOutputStream(new File(targetDir, tarEntry.getName()))) {
-                    IOUtils.copy(archive, fos);
+                try (SuFileOutputStream fos = new SuFileOutputStream(SuFile.open(targetDir,  tarEntry.getName()))) {
+                    IOUtils.copy(archive, fos, TarUtils.BUFFERSIZE);
                 }
             } else if (tarEntry.isSymbolicLink()) {
                 ShellHandler.runAsRoot(
