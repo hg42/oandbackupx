@@ -7,6 +7,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 
 import java.io.File;
@@ -15,30 +16,39 @@ import java.util.Objects;
 public class AppMetaInfo implements Parcelable {
 
     @SerializedName("packageName")
+    @Expose
     private String packageName;
 
     @SerializedName("packageLabel")
+    @Expose
     private String packageLabel;
 
     @SerializedName("versionName")
+    @Expose
     private String versionName;
 
     @SerializedName("versionCode")
+    @Expose
     private int versionCode;
 
     @SerializedName("profileId")
+    @Expose
     private int profileId;
 
     @SerializedName("sourceDir")
+    @Expose
     private String sourceDir;
 
     @SerializedName("splitSourceDirs")
+    @Expose
     private String[] splitSourceDirs;
 
     @SerializedName("isSystem")
+    @Expose
     private boolean isSystem;
 
     @SerializedName("icon")
+    @Expose
     Drawable applicationIcon;
 
     AppMetaInfo() {
