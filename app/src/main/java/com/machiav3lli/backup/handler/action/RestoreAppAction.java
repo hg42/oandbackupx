@@ -288,11 +288,11 @@ public class RestoreAppAction extends BaseAppAction {
         return new TarArchiveInputStream(new GzipCompressorInputStream(inputStream));
     }
 
-    private void genericRestoreFromArchive(final Uri archiveUri, final String targetDir, boolean isEncrypted) throws RestoreFailedException, Crypto.CryptoSetupException {
+    private void genericRestoreFromArchive(final Uri archiveUri, final String targetDir, boolean isEncrypted, final File cachePath) throws RestoreFailedException, Crypto.CryptoSetupException {
         Path tempDir = null;
         try (TarArchiveInputStream inputStream = this.openArchiveFile(archiveUri, isEncrypted)) {
             // Create a temporary directory in OABX's cache directory and uncompress the data into it
-            tempDir = Files.createTempDirectory(this.getContext().getCacheDir().toPath(), "restore_");
+            tempDir = Files.createTempDirectory(cachePath.toPath(), "restore_");
             TarUtils.uncompressTo(inputStream, tempDir.toFile());
             // clear the data from the final directory
             this.wipeDirectory(targetDir, BaseAppAction.DATA_EXCLUDED_DIRS);
@@ -356,7 +356,7 @@ public class RestoreAppAction extends BaseAppAction {
         if(backupArchive == null){
             throw new RestoreFailedException("Backup archive " + backupFilename + " is missing. Cannot restore");
         }
-        this.genericRestoreFromArchive(backupArchive.getUri(), app.getDataDir(), backupProperties.isEncrypted());
+        this.genericRestoreFromArchive(backupArchive.getUri(), app.getDataDir(), backupProperties.isEncrypted(), this.getContext().getCacheDir());
         this.genericRestorePermissions(BaseAppAction.BACKUP_DIR_DATA, new File(app.getDataDir()));
     }
 
@@ -367,7 +367,15 @@ public class RestoreAppAction extends BaseAppAction {
         if(backupArchive == null){
             throw new RestoreFailedException("Backup archive " + backupFilename + " is missing. Cannot restore");
         }
-        this.genericRestoreFromArchive(backupArchive.getUri(), app.getDataDir(), backupProperties.isEncrypted());
+        File externalDataDir = new File(app.getExternalDataDir());
+        // This mkdir procedure might need to be replaced by a root command in future when filesystem access is not possible anymore
+        if(!externalDataDir.exists()){
+            boolean mkdirResult = externalDataDir.mkdir();
+            if(!mkdirResult){
+                throw new RestoreFailedException("Could not create external data directory at " + externalDataDir);
+            }
+        }
+        this.genericRestoreFromArchive(backupArchive.getUri(), app.getExternalDataDir(), backupProperties.isEncrypted(), this.getContext().getExternalCacheDir());
     }
 
     public void restoreObbData(AppInfoV2 app, BackupProperties backupProperties, StorageFile backupLocation) throws RestoreFailedException {
@@ -381,7 +389,7 @@ public class RestoreAppAction extends BaseAppAction {
         if(backupArchive == null){
             throw new RestoreFailedException("Backup archive " + backupFilename + " is missing. Cannot restore");
         }
-        this.genericRestoreFromArchive(backupArchive.getUri(), app.getDataDir(), backupProperties.isEncrypted());
+        this.genericRestoreFromArchive(backupArchive.getUri(), app.getDeviceProtectedDataDir(), backupProperties.isEncrypted(), this.getContext().getCacheDir());
         this.genericRestorePermissions(
                 BaseAppAction.BACKUP_DIR_DEVICE_PROTECTED_FILES,
                 new File(app.getDeviceProtectedDataDir())
