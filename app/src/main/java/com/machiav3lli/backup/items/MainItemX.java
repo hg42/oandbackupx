@@ -105,6 +105,11 @@ public class MainItemX extends AbstractItem<MainItemX.ViewHolder> {
                 }else{
                     this.backupMode.setText("");
                 }
+
+                // --- Handle Update Chip
+                if(app.isInstalled() && backupProperties.getVersionCode() > app.getPackageInfo().versionCode){
+                    this.update.setVisibility(View.VISIBLE);
+                }
             }
             ItemUtils.pickAppType(app, appType);
             ItemUtils.pickBackupMode(app.getBackupMode(), backupMode);

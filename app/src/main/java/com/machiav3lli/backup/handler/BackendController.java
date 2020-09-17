@@ -15,7 +15,10 @@ import com.machiav3lli.backup.utils.DocumentHelper;
 import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.PrefUtils;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -23,14 +26,11 @@ import java.util.stream.Collectors;
 public final class BackendController {
     private static final String TAG = Constants.classTag(".BackendController");
 
-    public static List<AppInfoV2> getApplications(Context context){
-        PackageManager pm = context.getPackageManager();
-        List<ApplicationInfo> applications = pm.getInstalledApplications(0);
-
-        return null;
+    public static List<AppInfoV2> getApplicationList(Context context) throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
+        return BackendController.getApplicationList(context, true);
     }
 
-    public static List<AppInfoV2> getApplicationList(Context context)
+    public static List<AppInfoV2> getApplicationList(Context context, boolean includeUninstalled)
             throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
         PackageManager pm = context.getPackageManager();
         StorageFile backupRoot = DocumentHelper.getBackupRoot(context);
@@ -38,7 +38,33 @@ public final class BackendController {
         List<AppInfoV2> packageList = packageInfoList.stream()
                 .map(pi -> new AppInfoV2(context, pi, backupRoot.getUri()))
                 .collect(Collectors.toList());
+        if(includeUninstalled){
+            List<String> installedPackageNames = packageList.stream()
+                    .map(AppInfoV2::getPackageName)
+                    .collect(Collectors.toList());
+
+            List<StorageFile> directoriesInBackupRoot = BackendController.getDirectoriesInBackupRoot(context);
+            List<AppInfoV2> missingAppsWithBackup = directoriesInBackupRoot.stream()
+                    .filter(backupDir -> !installedPackageNames.contains(backupDir.getName()))
+                    .map(backupDir -> new AppInfoV2(context, backupDir.getUri()))
+                    .collect(Collectors.toList());
+            packageList.addAll(missingAppsWithBackup);
+
+        }
         return packageList;
+    }
+
+    public static List<StorageFile> getDirectoriesInBackupRoot(Context context) throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
+        StorageFile backupRoot = DocumentHelper.getBackupRoot(context);
+        try {
+            return Arrays.stream(backupRoot.listFiles())
+                    .filter(StorageFile::isDirectory)
+                    .collect(Collectors.toList());
+
+        } catch (FileNotFoundException e) {
+            Log.e(TAG, e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+        return new ArrayList<StorageFile>();
     }
 
     public static StorageStats getPackageStorageStats(Context context, String packageName) throws PackageManager.NameNotFoundException {
