@@ -288,7 +288,7 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         binding.restore.setOnClickListener(v -> {
             BackupItem backup = this.app.getLatestBackup();
             BackupProperties properties = backup.getBackupProperties();
-            if (!this.app.isInstalled() && properties.hasAppData()) {
+            if (!this.app.isInstalled() && !properties.hasApk() && properties.hasAppData()) {
                 Toast.makeText(getContext(), getString(R.string.notInstalledModeDataWarning), Toast.LENGTH_LONG).show();
             } else {
                 Bundle arguments = new Bundle();
