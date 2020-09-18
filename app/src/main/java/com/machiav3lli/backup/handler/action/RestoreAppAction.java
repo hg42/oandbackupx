@@ -319,7 +319,6 @@ public class RestoreAppAction extends BaseAppAction {
     }
 
     private void genericRestorePermissions(String type, File targetDir) throws RestoreFailedException {
-
         try {
             // retrieve the assigned uid and gid from the data directory Android created
             String[] uidgid = this.getShell().suGetOwnerAndGroup(targetDir.getAbsolutePath());

@@ -20,7 +20,6 @@ package com.machiav3lli.backup.handler;
 import android.util.Log;
 
 import androidx.annotation.Nullable;
-import androidx.preference.PreferenceManager;
 
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.utils.CommandUtils;
@@ -30,9 +29,7 @@ import com.topjohnwu.superuser.io.SuRandomAccessFile;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
