@@ -22,22 +22,16 @@ import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
 
-import androidx.documentfile.provider.DocumentFile;
-
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.handler.ShellHandler;
-import com.machiav3lli.backup.items.AppInfo;
+import com.machiav3lli.backup.handler.StorageFile;
 import com.machiav3lli.backup.items.BackupProperties;
-import com.machiav3lli.backup.utils.DocumentHelper;
 
 import org.apache.commons.io.IOUtils;
 
-import java.io.BufferedWriter;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -51,17 +45,15 @@ public class SystemRestoreAppAction extends RestoreAppAction {
 
     @Override
     public void restorePackage(Uri backupLocation, BackupProperties backupProperties) throws RestoreFailedException {
-        DocumentFile backupDir = DocumentFile.fromTreeUri(this.getContext(), backupLocation);
+        StorageFile backupDir = StorageFile.fromUri(this.getContext(), backupLocation);
 
         File apkTargetPath = new File(backupProperties.getSourceDir());
-        File appDir = apkTargetPath.getParentFile().getAbsoluteFile();
-        Uri apkLocation = backupLocation.buildUpon().appendPath(apkTargetPath.getName()).build();
+        StorageFile apkLocation = backupDir.findFile(apkTargetPath.getName());
         // Writing the apk to a temporary location to get it out of the magic storage to a local location
         // that can be accessed with shell commands.
         File tempPath = new File(this.getContext().getCacheDir(), apkTargetPath.getName());
-
         try {
-            InputStream inputStream = this.getContext().getContentResolver().openInputStream(apkLocation);
+            InputStream inputStream = this.getContext().getContentResolver().openInputStream(apkLocation.getUri());
             try (OutputStream outputStream = new FileOutputStream(tempPath)) {
                 IOUtils.copy(inputStream, outputStream);
             }
@@ -77,6 +69,7 @@ public class SystemRestoreAppAction extends RestoreAppAction {
             mountPoint = "/system";
         }
 
+        File appDir = apkTargetPath.getParentFile().getAbsoluteFile();
         String command = String.format("(mount -o remount,rw %s", mountPoint) + " && " +
                 // we can try to create the app dir. mkdir -p won't fail if it already exists
                 String.format("mkdir -p %s", appDir) + " && " +

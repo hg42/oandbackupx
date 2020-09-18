@@ -18,24 +18,15 @@
 package com.machiav3lli.backup.handler.action;
 
 import android.annotation.SuppressLint;
-import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
-import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.util.Log;
 
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.handler.ShellHandler;
-import com.machiav3lli.backup.items.ActionResult;
-import com.machiav3lli.backup.items.AppInfo;
-import com.machiav3lli.backup.items.AppInfoV2;
-import com.machiav3lli.backup.utils.FileUtils;
-import com.machiav3lli.backup.utils.PrefUtils;
 import com.topjohnwu.superuser.Shell;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.List;
 
