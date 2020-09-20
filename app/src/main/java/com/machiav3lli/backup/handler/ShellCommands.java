@@ -21,6 +21,7 @@ import android.content.Context;
 import android.util.Log;
 
 import com.machiav3lli.backup.Constants;
+import com.machiav3lli.backup.fragments.AppSheet;
 import com.machiav3lli.backup.items.AppInfo;
 import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.utils.FileUtils;
@@ -43,12 +44,12 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.machiav3lli.backup.utils.CommandUtils.iterableToString;
 import static com.machiav3lli.backup.utils.FileUtils.getName;
 
 public class ShellCommands {
-    static final String FALLBACK_UTILBOX_PATH = "false";
     private static final String TAG = Constants.classTag(".ShellCommands");
     private static final Pattern gidPattern = Pattern.compile("Gid:\\s*\\(\\s*(\\d+)");
     private static final Pattern uidPattern = Pattern.compile("Uid:\\s*\\(\\s*(\\d+)");
@@ -62,10 +63,6 @@ public class ShellCommands {
         this.context = context;
         this.users = (ArrayList<String>) getUsers();
         multiuserEnabled = this.users != null && this.users.size() > 1;
-    }
-
-    public ShellCommands(Context context) {
-        this(context, new ArrayList<>());
     }
 
     private static ArrayList<String> getIdsFromStat(String stat) {
@@ -105,14 +102,6 @@ public class ShellCommands {
         } catch (IOException e) {
             Log.e(TAG, e.toString());
         }
-    }
-
-    public static String getErrors() {
-        return errors;
-    }
-
-    public static void clearErrors() {
-        errors = "";
     }
 
     public static int getCurrentUser() {
@@ -191,66 +180,70 @@ public class ShellCommands {
         return command.toString();
     }
 
-    public Ownership getOwnership(String packageDir) throws OwnershipException, InterruptedException {
-        /*
-         * some packages can have 0 / UNKNOWN as uid and gid for a short
-         * time before being switched to their proper ids so to work
-         * around the race condition we sleep a little.
-         */
-        Thread.sleep(1000);
-        Shell.Result shellResult = ShellCommands.runAsRoot(String.format("stat %s", packageDir));
-        ArrayList<String> uid_gid = ShellCommands.getIdsFromStat(iterableToString(shellResult.getOut()));
+    public static void wipeCache(Context context, AppInfoV2 app) throws ShellActionFailedException {
+        final String conditionalDeleteTemplate = "\\\n && if [ -d \"%s\" ]; then rm -rf \"%s/\"* ; fi";
+        Log.i(TAG, String.format("%s: Wiping cache", app.getPackageName()));
+        StringBuilder commandBuilder = new StringBuilder();
+        // Normal app cache always exists
+        commandBuilder.append(String.format("rm -rf \"%s/cache/\"* \"%s/code_cache/\"*", app.getDataDir(), app.getDataDir()));
 
-        if (uid_gid.isEmpty())
-            throw new OwnershipException("no uid or gid found while trying to set permissions");
-        return new Ownership(uid_gid.get(0), uid_gid.get(1));
+        // device protected data cache, might exist or not
+        if (!app.getDeviceProtectedDataDir().isEmpty()) {
+            String cacheDir = new File(app.getDeviceProtectedDataDir(), "cache").getAbsolutePath();
+            String codeCacheDir = new File(app.getDeviceProtectedDataDir(), "code_cache").getAbsolutePath();
+            commandBuilder.append(String.format(conditionalDeleteTemplate, cacheDir, cacheDir));
+            commandBuilder.append(String.format(conditionalDeleteTemplate, codeCacheDir, codeCacheDir));
+        }
+
+        // external cache dirs are added dynamically, the bash if-else will handle the logic
+        for (File myCacheDir : context.getExternalCacheDirs()) {
+            String cacheDirName = myCacheDir.getName();
+            File appsCacheDir = new File(new File(myCacheDir.getParentFile().getParentFile(), app.getPackageName()), cacheDirName);
+            commandBuilder.append(String.format(conditionalDeleteTemplate, appsCacheDir, appsCacheDir));
+        }
+
+        String command = commandBuilder.toString();
+        try {
+            ShellHandler.runAsRoot(command);
+        } catch (ShellHandler.ShellCommandFailedException e) {
+            throw new ShellActionFailedException(command, String.join("\n", e.getShellResult().getErr()), e);
+        }
     }
 
-    public void setPermissions(String packageDir) throws OwnershipException, ShellCommandException, InterruptedException {
-        Shell.Result shellResult;
-        Ownership ownership = this.getOwnership(packageDir);
-        Log.d(TAG, "Changing permissions for " + packageDir);
-        shellResult = ShellCommands.runAsRoot(errors, String.format("%s chown -R %s %s", Constants.UTILBOX_PATH, ownership.toString(), packageDir));
-        if (!shellResult.isSuccess()) {
-            throw new ShellCommandException(shellResult.getCode(), shellResult.getErr());
-        }
-        shellResult = ShellCommands.runAsRoot(errors, String.format("%s chmod -R 771 %s", Constants.UTILBOX_PATH, packageDir));
-        if (!shellResult.isSuccess()) {
-            throw new ShellCommandException(shellResult.getCode(), shellResult.getErr());
-        }
-    }
-
-    public int uninstall(String packageName, String sourceDir, String dataDir, boolean isSystem) {
-        Shell.Result shellResult;
+    public void uninstall(String packageName, String sourceDir, String dataDir, boolean isSystem) throws ShellActionFailedException {
+        String command;
         if (!isSystem) {
             // Uninstalling while user app
-            shellResult = ShellCommands.runAsRoot(String.format("pm uninstall %s", packageName));
+            command = String.format("pm uninstall %s", packageName);
+            try {
+                ShellHandler.runAsRoot(command);
+            } catch (ShellHandler.ShellCommandFailedException e) {
+                throw new ShellActionFailedException(command, String.join("\n", e.getShellResult().getErr()), e);
+            }
             // don't care for the result here, it likely fails due to file not found
-            ShellCommands.runAsRoot(String.format("%s rm -r /data/lib/%s/*", Constants.UTILBOX_PATH, packageName));
+            try {
+                command = String.format("%s rm -r /data/lib/%s/*", Constants.UTILBOX_PATH, packageName);
+                ShellHandler.runAsRoot(command);
+            } catch (ShellHandler.ShellCommandFailedException e) {
+                Log.d(TAG, "Command '" + command + "' failed: " + String.join(" ", e.getShellResult().getErr()));
+            }
         } else {
             // Deleting while system app
             // it seems that busybox mount sometimes fails silently so use toolbox instead
             String apkSubDir = getName(sourceDir);
-            apkSubDir = apkSubDir.substring(0, apkSubDir.lastIndexOf("."));
-            String command = "(mount -o remount,rw /system" + " && " +
+            apkSubDir = apkSubDir.substring(0, apkSubDir.lastIndexOf('.'));
+            command = "(mount -o remount,rw /system" + " && " +
                     String.format("%s rm %s", Constants.UTILBOX_PATH, sourceDir) + " ; " +
                     String.format("rm -r /system/app/%s", apkSubDir) + " ; " +
                     String.format("%s rm -r %s", Constants.UTILBOX_PATH, dataDir) + " ; " +
                     String.format("%s rm -r /data/app-lib/%s*", Constants.UTILBOX_PATH, packageName) + "); " +
                     "mount -o remount,ro /system";
-            shellResult = ShellCommands.runAsRoot(command);
-        }
-
-        // Execute
-        if (!shellResult.isSuccess()) {
-            for (String line : shellResult.getErr()) {
-                if (!line.contains("No such file or directory") || shellResult.getErr().size() != 1) {
-                    writeErrorLog(context, packageName, line);
-                }
+            try {
+                ShellHandler.runAsRoot(command);
+            } catch (ShellHandler.ShellCommandFailedException e) {
+                throw new ShellActionFailedException(command, String.join("\n", e.getShellResult().getErr()), e);
             }
         }
-        Log.i(TAG, "uninstall return: " + shellResult.getCode());
-        return shellResult.getCode();
     }
 
     public void enableDisablePackage(String packageName, List<String> users, boolean enable) {
@@ -266,33 +259,6 @@ public class ShellCommands {
                     ShellCommands.writeErrorLog(context, packageName, line);
                 }
             }
-        }
-    }
-
-    public boolean checkUtilBoxPath() {
-        return checkUtilBoxPath(Constants.UTILBOX_PATH);
-    }
-
-    /**
-     * Checks if the given path exists and is executable
-     *
-     * @param utilboxPath path to execute
-     * @return true, if the execution was successful, false if not
-     */
-    private boolean checkUtilBoxPath(String utilboxPath) {
-        // Bail out, if we know, that it does not work
-        if (utilboxPath.equals(ShellCommands.FALLBACK_UTILBOX_PATH)) {
-            return false;
-        }
-        // Try to get the version of the tool
-        final String command = String.format("%s --version", utilboxPath);
-        Shell.Result shellResult = Shell.sh(command).exec();
-        if (shellResult.getCode() == 0) {
-            Log.i(TAG, String.format("Utilbox check: Using %s", iterableToString(shellResult.getOut())));
-            return true;
-        } else {
-            Log.d(TAG, "Utilbox check: %s not available");
-            return false;
         }
     }
 
@@ -354,6 +320,19 @@ public class ShellCommands {
         public ShellCommandException(int exitCode, List<String> stderr) {
             this.exitCode = exitCode;
             this.stderr = stderr;
+        }
+    }
+
+    public static class ShellActionFailedException extends Exception {
+        final String command;
+
+        public ShellActionFailedException(String command, String message, Throwable cause) {
+            super(message, cause);
+            this.command = command;
+        }
+
+        public String getCommand() {
+            return this.command;
         }
     }
 }
