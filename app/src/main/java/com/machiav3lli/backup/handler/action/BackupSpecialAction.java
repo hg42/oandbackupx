@@ -73,7 +73,9 @@ public class BackupSpecialAction extends BackupAppAction {
         List<ShellHandler.FileInfo> filesToBackup = new ArrayList<>(appInfo.getFileList().length);
         try {
             for (String filepath : appInfo.getFileList()) {
-                filesToBackup.addAll(this.getShell().suGetDetailedDirectoryContents(filepath, false));
+                String parent = filepath.endsWith("/") ? new File(filepath).getName() : null;
+                List<ShellHandler.FileInfo> fileInfos = this.getShell().suGetDetailedDirectoryContents(filepath, false, parent);
+                filesToBackup.addAll(fileInfos);
             }
             this.genericBackupData(BaseAppAction.BACKUP_DIR_DATA, backupInstanceDir.getUri(), filesToBackup, true);
         } catch (ShellHandler.ShellCommandFailedException e) {

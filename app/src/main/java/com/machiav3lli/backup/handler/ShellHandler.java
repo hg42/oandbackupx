@@ -93,8 +93,6 @@ public class ShellHandler {
         // Special case:
         // "lrwxrwxrwx 1 root   root           60 2020-08-13 23:28 lib -> /data/app/org.mozilla.fenix-ddea_jq2cVLmYxBKu0ummg==/lib/x86"
         Shell.Result shellResult = ShellHandler.runAsRoot(String.format("%s ls -Al \"%s\"", this.utilboxPath, path));
-        // Remove the first line with the total amount
-        shellResult.getOut().remove(0);
         final String relativeParent = parent != null ? parent : "";
         ArrayList<FileInfo> result = shellResult.getOut().stream()
                 .filter(line -> !line.isEmpty())
@@ -309,6 +307,13 @@ public class ShellHandler {
             String filepath;
             final String owner = tokens[2];
             final String group = tokens[3];
+            // If ls was executed with a file as parameter, the full path is echoed. This is not
+            // good for processing. Removing the absolute parent and setting the parent to be the parent
+            // and not the file itself
+            if(tokens[7].startsWith(absoluteParent)){
+                absoluteParent = new File(absoluteParent).getParent();
+                tokens[7] = tokens[7].substring(absoluteParent.length() + 1);
+            }
             if(parentPath == null || parentPath.isEmpty()){
                 filepath = tokens[7];
             }else {

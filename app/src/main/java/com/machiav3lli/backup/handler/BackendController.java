@@ -3,7 +3,6 @@ package com.machiav3lli.backup.handler;
 import android.app.usage.StorageStats;
 import android.app.usage.StorageStatsManager;
 import android.content.Context;
-import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Process;
@@ -11,6 +10,7 @@ import android.util.Log;
 
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.items.AppInfoV2;
+import com.machiav3lli.backup.items.SpecialAppMetaInfo;
 import com.machiav3lli.backup.utils.DocumentHelper;
 import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.PrefUtils;
@@ -38,6 +38,12 @@ public final class BackendController {
         List<AppInfoV2> packageList = packageInfoList.stream()
                 .map(pi -> new AppInfoV2(context, pi, backupRoot.getUri()))
                 .collect(Collectors.toList());
+        // Special Backups must added before the uninstalled packages, because otherwise it would
+        // discover the backup directory and run in a special case where no the directory is empty.
+        // This would mean, that no package info is available – neither from backup.properties
+        // nor from PackageManager.
+        packageList.addAll(SpecialAppMetaInfo.getSpecialPackages(context));
+
         if(includeUninstalled){
             List<String> installedPackageNames = packageList.stream()
                     .map(AppInfoV2::getPackageName)

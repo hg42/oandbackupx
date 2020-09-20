@@ -34,8 +34,6 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
-import androidx.preference.PreferenceManager;
-import androidx.core.content.ContextCompat;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -157,13 +155,18 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
             UIUtils.setVisibility(this.binding.uninstall, View.VISIBLE, update);
             UIUtils.setVisibility(this.binding.backup, View.VISIBLE, update);
         } else {
+            // Special app is not installed but backup should be possible... maybe a check of the backup is really
+            // possible on the device could be an indicator for `isInstalled()` of special packages
+            if(!this.app.getAppInfo().isSpecial()){
+                UIUtils.setVisibility(this.binding.backup, View.GONE, update);
+            }
             UIUtils.setVisibility(this.binding.uninstall, View.GONE, update);
-            UIUtils.setVisibility(this.binding.backup, View.GONE, update);
             UIUtils.setVisibility(this.binding.enablePackage, View.GONE, update);
             UIUtils.setVisibility(this.binding.disablePackage, View.GONE, update);
         }
-        if (this.app.getAppInfo().isSystem())
+        if (this.app.getAppInfo().isSystem()) {
             UIUtils.setVisibility(this.binding.uninstall, View.GONE, update);
+        }
     }
 
     private void setupAppInfo(boolean update) {
