@@ -68,6 +68,7 @@ public class RestoreAppAction extends BaseAppAction {
             this.killPackage(app.getPackageName());
             if ((backupMode & AppInfo.MODE_APK) == AppInfo.MODE_APK) {
                 this.restorePackage(backupLocation, backupProperties);
+                app.refreshFromPackageManager(this.getContext());
             }
 
             if ((backupMode & AppInfo.MODE_DATA) == AppInfo.MODE_DATA) {
