@@ -72,9 +72,7 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
     int notificationId = (int) System.currentTimeMillis();
     AppInfoV2 app;
     HandleMessages handleMessages;
-    ArrayList<String> users;
     ShellCommands shellCommands;
-    String backupDirPath;
     File backupDir;
     int position;
     private SheetAppBinding binding;
@@ -357,21 +355,26 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         binding.enablePackage.setOnClickListener(v -> displayDialogEnableDisable(app.getPackageName(), true));
         binding.disablePackage.setOnClickListener(v -> displayDialogEnableDisable(app.getPackageName(), false));
         binding.uninstall.setOnClickListener(v -> new AlertDialog.Builder(requireContext())
-                .setTitle(app.getAppInfo().getPackageLabel())
+                .setTitle(this.app.getAppInfo().getPackageLabel())
                 .setMessage(R.string.uninstallDialogMessage)
                 .setPositiveButton(R.string.dialogYes, (dialog, which) -> {
                     Thread uninstallThread = new Thread(() -> {
-                        Log.i(TAG, "uninstalling " + app.getAppInfo().getPackageLabel());
-                        handleMessages.showMessage(app.getAppInfo().getPackageLabel(), getString(R.string.uninstallProgress));
-                        // Todo: Reenable Uninstalling
-                        //int ret = shellCommands.uninstall(app.getPackageName(), app.getSourceDir(), app.getDataDir(), app.isSystem());
-                        int ret = 0;
-                        handleMessages.endMessage();
-                        if (ret == 0) {
-                            NotificationHelper.showNotification(getContext(), MainActivityX.class, notificationId++, app.getAppInfo().getPackageLabel(), getString(R.string.uninstallSuccess), true);
-                        } else {
-                            NotificationHelper.showNotification(getContext(), MainActivityX.class, notificationId++, app.getAppInfo().getPackageLabel(), getString(R.string.uninstallFailure), true);
-                            UIUtils.showErrors(requireActivity());
+                        Log.i(TAG, "uninstalling " + this.app.getAppInfo().getPackageLabel());
+                        this.handleMessages.showMessage(this.app.getAppInfo().getPackageLabel(), getString(R.string.uninstallProgress));
+                        try {
+                            this.shellCommands.uninstall(this.app.getPackageName(), this.app.getApkPath(), this.app.getDataDir(), this.app.getAppInfo().isSystem());
+                            NotificationHelper.showNotification(
+                                    this.getContext(), MainActivityX.class, this.notificationId++,
+                                    this.app.getAppInfo().getPackageLabel(),
+                                    this.getString(R.string.uninstallSuccess), true
+                            );
+                        } catch (ShellCommands.ShellActionFailedException e) {
+                            NotificationHelper.showNotification(
+                                    this.getContext(), MainActivityX.class, this.notificationId++,
+                                    this.app.getAppInfo().getPackageLabel(),
+                                    this.getString(R.string.uninstallFailure), true
+                            );
+                            UIUtils.showError(this.requireActivity(), e.getMessage());
                         }
                         requireMainActivity().refreshWithAppSheet();
                     });
