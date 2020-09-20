@@ -140,7 +140,8 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
     private void setupChips(boolean update) {
         if (this.app.hasBackups()) {
             UIUtils.setVisibility(this.binding.delete, View.VISIBLE, update);
-            UIUtils.setVisibility(this.binding.share, View.VISIBLE, update);
+            // Sharing is not possible at the moment
+            UIUtils.setVisibility(this.binding.share, View.GONE, update);
             // Todo: Verify the effect
             // UIUtils.setVisibility(this.binding.restore, app.getBackupMode() == AppInfo.MODE_UNSET ? View.GONE : View.VISIBLE, update);
             UIUtils.setVisibility(this.binding.restore, View.VISIBLE, update);
@@ -322,8 +323,9 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
                 })
                 .setNegativeButton(R.string.dialogNo, null)
                 .show());
+        binding.share.setVisibility(View.GONE);
         binding.share.setOnClickListener(v -> {
-            // Todo: Reenable this
+            // Todo: How to share multiple files? Tar them? Zip them? Why sharing?
             /*
             File backupDir = FileUtils.createBackupDir(getActivity(), FileUtils.getDefaultBackupDirPath(requireContext()));
             File apk = new File(backupDir, app.getPackageName() + "/" + app.getLogInfo().getApk());
