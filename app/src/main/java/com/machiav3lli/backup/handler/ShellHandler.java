@@ -277,7 +277,7 @@ public class ShellHandler {
         private final long filesize;
         private String linkName;
 
-        protected FileInfo(
+        public FileInfo(
                 @NotNull final String filepath,
                 @NotNull final FileType filetype,
                 @NotNull final String absoluteParent,

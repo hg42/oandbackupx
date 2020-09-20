@@ -157,7 +157,7 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         } else {
             // Special app is not installed but backup should be possible... maybe a check of the backup is really
             // possible on the device could be an indicator for `isInstalled()` of special packages
-            if(!this.app.getAppInfo().isSpecial()){
+            if (!this.app.getAppInfo().isSpecial()) {
                 UIUtils.setVisibility(this.binding.backup, View.GONE, update);
             }
             UIUtils.setVisibility(this.binding.uninstall, View.GONE, update);
@@ -291,7 +291,10 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         binding.restore.setOnClickListener(v -> {
             BackupItem backup = this.app.getLatestBackup();
             BackupProperties properties = backup.getBackupProperties();
-            if (!this.app.isInstalled() && !properties.hasApk() && properties.hasAppData()) {
+            if (!this.app.getAppInfo().isSpecial()
+                    && !this.app.isInstalled()
+                    && !properties.hasApk()
+                    && properties.hasAppData()) {
                 Toast.makeText(getContext(), getString(R.string.notInstalledModeDataWarning), Toast.LENGTH_LONG).show();
             } else {
                 Bundle arguments = new Bundle();

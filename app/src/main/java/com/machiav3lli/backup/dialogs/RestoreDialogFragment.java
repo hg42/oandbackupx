@@ -36,10 +36,6 @@ import com.machiav3lli.backup.items.BackupProperties;
 public class RestoreDialogFragment extends DialogFragment {
     private final ActionListener listener;
 
-    /*public RestoreDialogFragment() {
-        listener = null;
-    }*/
-
     public RestoreDialogFragment(ActionListener listener) {
         this.listener = listener;
     }
@@ -55,7 +51,7 @@ public class RestoreDialogFragment extends DialogFragment {
 
         assert app != null;
         boolean showApkBtn = properties.hasApk();
-        boolean showDataBtn = isInstalled && properties.hasAppData();
+        boolean showDataBtn = (isInstalled || app.isSpecial()) && properties.hasAppData();
         boolean showBothBtn = showApkBtn && properties.hasAppData();
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this.getActivity());
