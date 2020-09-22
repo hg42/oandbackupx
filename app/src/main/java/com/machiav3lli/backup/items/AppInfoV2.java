@@ -1,5 +1,6 @@
 package com.machiav3lli.backup.items;
 
+import android.app.usage.StorageStats;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -7,7 +8,9 @@ import android.net.Uri;
 import android.util.Log;
 
 import com.machiav3lli.backup.Constants;
+import com.machiav3lli.backup.handler.BackendController;
 import com.machiav3lli.backup.handler.StorageFile;
+import com.machiav3lli.backup.handler.action.BaseAppAction;
 import com.machiav3lli.backup.utils.DocumentHelper;
 import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.PrefUtils;
@@ -26,43 +29,51 @@ import java.util.List;
 public class AppInfoV2 {
     private static final String TAG = Constants.classTag(".AppInfoV2");
 
+    public static final int MODE_UNSET = 0;
+    public static final int MODE_APK = 1;
+    public static final int MODE_DATA = 2;
+    public static final int MODE_BOTH = 3;
+
     private final Context context;
     private final String packageName;
     private AppMetaInfo metaInfo;
     private List<BackupItem> backupHistory;
     private Uri backupDir;
+    private StorageStats storageStats;
 
     private PackageInfo packageInfo;
 
     /**
      * This method is used to inject external created AppMetaInfo objects for example for
      * virtual (special) packages
-     * @param context Context object of the app
+     *
+     * @param context  Context object of the app
      * @param metaInfo Constructed information object that describes the package
-     * @throws FileUtils.BackupLocationInAccessibleException when the backup location cannot be read for any reason
+     * @throws FileUtils.BackupLocationInAccessibleException   when the backup location cannot be read for any reason
      * @throws PrefUtils.StorageLocationNotConfiguredException when the backup location is not set in the configuration
      */
     AppInfoV2(Context context, @NotNull AppMetaInfo metaInfo) throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
         this.context = context;
         this.metaInfo = metaInfo;
         this.packageName = metaInfo.getPackageName();
-        StorageFile backupDoc = DocumentHelper.getBackupRoot(context).findFile(this.packageName).getUri();
+        StorageFile backupDoc = DocumentHelper.getBackupRoot(context).findFile(this.packageName);
         if (backupDoc != null) {
             this.backupDir = backupDoc.getUri();
             this.backupHistory = AppInfoV2.getBackupHistory(context, this.backupDir);
-        }else{
+        } else {
             this.backupHistory = new ArrayList<>();
         }
-    }*/
+    }
 
     public AppInfoV2(Context context, PackageInfo packageInfo) throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {
         this.context = context;
         this.packageName = packageInfo.packageName;
         this.packageInfo = packageInfo;
-        StorageFile backupDoc = DocumentHelper.getBackupRoot(context).findFile(this.packageName).getUri();
+        StorageFile backupDoc = DocumentHelper.getBackupRoot(context).findFile(this.packageName);
         if (backupDoc != null) {
             this.backupDir = backupDoc.getUri();
         }
+        this.refreshStorageStats();
     }
 
     public AppInfoV2(Context context, @NotNull Uri packageBackupRoot) {
@@ -74,6 +85,7 @@ public class AppInfoV2 {
         try {
             this.packageInfo = context.getPackageManager().getPackageInfo(this.packageName, 0);
             this.metaInfo = new AppMetaInfo(context, this.packageInfo);
+            this.refreshStorageStats();
         } catch (PackageManager.NameNotFoundException e) {
             Log.i(AppInfoV2.TAG, this.packageName + " is not installed.");
             if (this.backupHistory.isEmpty()) {
@@ -93,6 +105,7 @@ public class AppInfoV2 {
         }
         this.metaInfo = new AppMetaInfo(context, packageInfo);
         this.backupHistory = AppInfoV2.getBackupHistory(context, this.backupDir);
+        this.refreshStorageStats();
     }
 
     private static List<BackupItem> getBackupHistory(Context context, Uri backupDir) {
@@ -120,6 +133,16 @@ public class AppInfoV2 {
 
     private static AppMetaInfo getInstalledApp(Context context, String packageName) throws PackageManager.NameNotFoundException {
         return new AppMetaInfo(context, context.getPackageManager().getPackageInfo(packageName, 0));
+    }
+
+    private boolean refreshStorageStats() {
+        try {
+            this.storageStats = BackendController.getPackageStorageStats(this.context, this.getPackageName());
+            return true;
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, "Could not refresh StorageStats. Package was not found: " + e.getMessage());
+            return false;
+        }
     }
 
     public boolean refreshFromPackageManager(Context context) {
@@ -211,6 +234,10 @@ public class AppInfoV2 {
         return this.packageInfo.applicationInfo.sourceDir;
     }
 
+    public StorageStats getStorageStats() {
+        return this.storageStats;
+    }
+
     /**
      * Returns the list of additional apks (excluding the main apk), if the app is installed
      *
@@ -221,13 +248,37 @@ public class AppInfoV2 {
         return this.metaInfo.getSplitSourceDirs();
     }
 
+    public boolean isUpdated() {
+        return this.hasBackups()
+                && this.getLatestBackup().getBackupProperties().getVersionCode() > this.getAppInfo().getVersionCode();
+    }
+
+    /**
+     * Method to get information what kind of backups are available
+     * Subject to change due to the more complex backup history and potential for better description
+     *
+     * @return 0 if no backup is available, 1 if only apk is available, 2 if only data is available,
+     * 3 if apk and data is available
+     */
+    public int getBackupMode() {
+        int backupMode = AppInfoV2.MODE_UNSET;
+        if (this.hasBackups()) {
+            boolean hasApk = this.getBackupHistory().stream().anyMatch(backupItem -> backupItem.getBackupProperties().hasApk());
+            boolean hasData = this.getBackupHistory().stream().anyMatch(backupItem -> backupItem.getBackupProperties().hasAppData());
+            if (hasApk && hasData) {
+                backupMode = AppInfoV2.MODE_BOTH;
+            } else if (hasApk) {
+                backupMode = AppInfoV2.MODE_APK;
+            } else {
+                backupMode = AppInfoV2.MODE_DATA;
+            }
+        }
+        return backupMode;
+    }
 
     @NotNull
     @Override
     public String toString() {
         return this.packageName;
-    }
-
-    public boolean isUpdated() {
     }
 }
