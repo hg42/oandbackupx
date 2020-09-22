@@ -21,14 +21,10 @@ import android.content.Context;
 import android.util.Log;
 
 import com.machiav3lli.backup.Constants;
-import com.machiav3lli.backup.fragments.AppSheet;
-import com.machiav3lli.backup.items.AppInfo;
 import com.machiav3lli.backup.items.AppInfoV2;
 import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.LogUtils;
 import com.topjohnwu.superuser.Shell;
-
-import org.jetbrains.annotations.NotNull;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -42,17 +38,13 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import static com.machiav3lli.backup.utils.CommandUtils.iterableToString;
 import static com.machiav3lli.backup.utils.FileUtils.getName;
 
 public class ShellCommands {
     private static final String TAG = Constants.classTag(".ShellCommands");
-    private static final Pattern gidPattern = Pattern.compile("Gid:\\s*\\(\\s*(\\d+)");
-    private static final Pattern uidPattern = Pattern.compile("Uid:\\s*\\(\\s*(\\d+)");
     private static String errors = "";
     private final Context context;
     boolean multiuserEnabled;
@@ -63,17 +55,6 @@ public class ShellCommands {
         this.context = context;
         this.users = (ArrayList<String>) getUsers();
         multiuserEnabled = this.users != null && this.users.size() > 1;
-    }
-
-    private static ArrayList<String> getIdsFromStat(String stat) {
-        Matcher uid = uidPattern.matcher(stat);
-        Matcher gid = gidPattern.matcher(stat);
-        if (!uid.find() || !gid.find())
-            return new ArrayList<>();
-        ArrayList<String> res = new ArrayList<>();
-        res.add(uid.group(1));
-        res.add(gid.group(1));
-        return res;
     }
 
     public static void deleteBackup(File file) {
@@ -147,7 +128,7 @@ public class ShellCommands {
         return ShellCommands.runShellCommand(Shell::sh, errors, commands);
     }
 
-    private static Shell.Result runShellCommand(runnableShellCommand c, Collection<String> errors, String... commands) {
+    private static Shell.Result runShellCommand(RunnableShellCommand c, Collection<String> errors, String... commands) {
         // defining stdout and stderr on our own
         // otherwise we would have to set set the flag redirect stderr to stdout:
         // Shell.Config.setFlags(Shell.FLAG_REDIRECT_STDERR);
@@ -162,22 +143,6 @@ public class ShellCommands {
             errors.addAll(stderr);
         }
         return result;
-    }
-
-    public static String wipeCacheCommand(Context ctx, AppInfoV2 app) {
-        String dataDir = app.getDataDir();
-        String deDataDir = app.getDeviceProtectedDataDir();
-        StringBuilder command = new StringBuilder(String.format("rm -rf %s/cache %s/code_cache", dataDir, dataDir));
-        if (!dataDir.equals(deDataDir)) {
-            command.append(String.format(" %s/cache %s/code_cache",
-                    deDataDir, deDataDir));
-        }
-        File[] cacheDirs = ctx.getExternalCacheDirs();
-        for (File cacheDir : cacheDirs) {
-            String extCache = cacheDir.getAbsolutePath().replace(ctx.getPackageName(), app.getPackageName());
-            command.append(" ").append(extCache);
-        }
-        return command.toString();
     }
 
     public static void wipeCache(Context context, AppInfoV2 app) throws ShellActionFailedException {
@@ -285,42 +250,8 @@ public class ShellCommands {
         }
     }
 
-    protected interface runnableShellCommand {
+    protected interface RunnableShellCommand {
         Shell.Job runCommand(String... commands);
-    }
-
-    private static class Ownership {
-        private final int uid;
-        private final int gid;
-
-        public Ownership(String uidStr, String gidStr) throws OwnershipException {
-            if ((uidStr == null || uidStr.isEmpty()) || (gidStr == null || gidStr.isEmpty()))
-                throw new OwnershipException("cannot initiate ownership object with empty uid or gid");
-            this.uid = Integer.parseInt(uidStr);
-            this.gid = Integer.parseInt(gidStr);
-        }
-
-        @NotNull
-        @Override
-        public String toString() {
-            return String.format("%s:%s", uid, gid);
-        }
-    }
-
-    public static class OwnershipException extends Exception {
-        public OwnershipException(String msg) {
-            super(msg);
-        }
-    }
-
-    public static class ShellCommandException extends Exception {
-        private final int exitCode;
-        private final List<String> stderr;
-
-        public ShellCommandException(int exitCode, List<String> stderr) {
-            this.exitCode = exitCode;
-            this.stderr = stderr;
-        }
     }
 
     public static class ShellActionFailedException extends Exception {
