@@ -43,6 +43,11 @@ android {
             versionNameSuffix '-neo'
             minifyEnabled true
         }
+        neotkp {
+            applicationIdSuffix '.neotkp'
+            versionNameSuffix '-neo-tkp'
+            minifyEnabled true
+        }
         debug {
             applicationIdSuffix '.debug'
         }

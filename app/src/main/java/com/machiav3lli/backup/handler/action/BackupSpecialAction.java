@@ -77,7 +77,7 @@ public class BackupSpecialAction extends BackupAppAction {
                 String parent = isDirSource ? new File(filepath).getName() : null;
                 List<ShellHandler.FileInfo> fileInfos = this.getShell().suGetDetailedDirectoryContents(filepath, false, parent);
                 if(isDirSource){
-                    filesToBackup.add(new ShellHandler.FileInfo(parent, ShellHandler.FileInfo.FileType.DIRECTORY, new File(filepath).getParent(), "system", "system", 0));
+                    filesToBackup.add(new ShellHandler.FileInfo(parent, ShellHandler.FileInfo.FileType.DIRECTORY, new File(filepath).getParent(), "system", "system", (short) 0770, 0));
                 }
                 filesToBackup.addAll(fileInfos);
             }

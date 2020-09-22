@@ -19,13 +19,11 @@ package com.machiav3lli.backup.utils;
 
 import android.content.Context;
 import android.net.Uri;
-import android.provider.DocumentsContract;
 import android.util.Log;
 
 import androidx.documentfile.provider.DocumentFile;
 
 import com.machiav3lli.backup.Constants;
-import com.machiav3lli.backup.handler.StorageFile;
 import com.machiav3lli.backup.utils.PrefUtils.StorageLocationNotConfiguredException;
 
 import java.io.BufferedReader;
@@ -35,11 +33,10 @@ import java.io.FileNotFoundException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.Objects;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 
 public final class FileUtils {
-    // TODO replace the usage of Environment.getExternalStorageDirectory()
-    public static final String DEFAULT_BACKUP_FOLDER = "content://com.android.externalstorage.documents/tree/primary%3A" + "OABXNG";
     public static final String BACKUP_SUBDIR_NAME = "OABXNG";
     public static final String LOG_FILE_NAME = "OAndBackupX.log";
     private static Uri backupLocation;
@@ -62,14 +59,8 @@ public final class FileUtils {
         );
     }
 
-    // OLD: To check if still needed or valid
-
     public static File getExternalStorageDirectory(Context context) {
         return context.getExternalFilesDir(null).getParentFile().getParentFile().getParentFile().getParentFile();
-    }
-
-    public static File getExternalStoragePublicDirectory(Context context, String directory) {
-        return new File(getExternalStorageDirectory(context), directory);
     }
 
     // Todo: Remove this. Only used in Scheduling
@@ -79,7 +70,6 @@ public final class FileUtils {
 
     public static File getDefaultLogFilePath(Context context) {
         return new File(context.getExternalFilesDir(null), FileUtils.LOG_FILE_NAME);
-        //return PrefUtils.getPrivateSharedPrefs(context).getString(Constants.PREFS_PATH_BACKUP_DIRECTORY, PrefUtils.getBackupDir(context) + "/OAndBackupX.log");
     }
 
     /**
@@ -102,24 +92,19 @@ public final class FileUtils {
             -> primary:OABX/InternalDir
             new TreeDocumentFile(null, context, backupLocationDoc.getUri()).getUri().getPath()
              */
-            String[] storageLocation = DocumentsContract.getTreeDocumentId(Uri.parse(storageRoot)).split(":",  2);
-
             if (storageRoot.isEmpty()) {
                 throw new StorageLocationNotConfiguredException();
             }
             DocumentFile storageRootDoc = DocumentFile.fromTreeUri(context, Uri.parse(storageRoot));
-            StorageFile storageRootDoc2 = StorageFile.fromUri(context, Uri.parse(storageRoot));
             if(storageRootDoc == null || !storageRootDoc.exists()){
                 throw new BackupLocationInAccessibleException("Cannot access the root location.");
             }
             DocumentFile backupLocationDoc = storageRootDoc.findFile(FileUtils.BACKUP_SUBDIR_NAME);
-            StorageFile backupLocationDoc2 = storageRootDoc2.findFile(FileUtils.BACKUP_SUBDIR_NAME);
             if(backupLocationDoc == null || !backupLocationDoc.exists()){
                 Log.i(FileUtils.TAG, "Backup directory does not exist. Creating it");
                 backupLocationDoc = storageRootDoc.createDirectory(FileUtils.BACKUP_SUBDIR_NAME);
                 assert backupLocationDoc != null;
             }
-            //FileUtils.backupLocation = Uri.parse(DocumentsContract.getTreeDocumentId(backupLocationDoc.getUri()));
             FileUtils.backupLocation = backupLocationDoc.getUri();
         }
         return FileUtils.backupLocation;
@@ -151,5 +136,14 @@ public final class FileUtils {
         public BackupLocationInAccessibleException(String message, Throwable cause) {
             super(message, cause);
         }
+    }
+
+    public static short translatePosixPermissionToMode(Set<PosixFilePermission> permission) {
+        int mode = 0;
+        for (PosixFilePermission action : PosixFilePermission.values()) {
+            mode = mode << 1;
+            mode += permission.contains(action) ? 1 : 0;
+        }
+        return (short) mode;
     }
 }
