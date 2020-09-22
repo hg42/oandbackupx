@@ -92,4 +92,10 @@ public class SystemRestoreAppAction extends RestoreAppAction {
             tempPath.delete();
         }
     }
+
+    @Override
+    public void killPackage(String packageName) {
+        // stub
+        // Do not kill system apps
+    }
 }

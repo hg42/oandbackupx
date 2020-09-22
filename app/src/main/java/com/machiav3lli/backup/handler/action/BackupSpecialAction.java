@@ -113,4 +113,10 @@ public class BackupSpecialAction extends BackupAppAction {
         // stub
         return false;
     }
+
+    @Override
+    public void killPackage(String packageName) {
+        // stub
+        // Do not kill system apps
+    }
 }
