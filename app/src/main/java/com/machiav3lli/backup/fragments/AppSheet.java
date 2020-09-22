@@ -104,7 +104,6 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         handleMessages = new HandleMessages(requireContext());
         ArrayList<String> users = savedInstanceState != null ? savedInstanceState.getStringArrayList(Constants.BUNDLE_USERS) : new ArrayList<>();
         shellCommands = new ShellCommands(requireContext(), users);
-        String backupDirPath = FileUtils.getBackupDirectoryPath(requireContext());
         return sheet;
     }
 
@@ -317,8 +316,9 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
                         handleMessages.endMessage();
                         requireMainActivity().refreshWithAppSheet();
                     });
-                    deleteBackupThread.start();
-                    Toast.makeText(requireContext(), R.string.deleted_backup, Toast.LENGTH_LONG).show();
+                    //deleteBackupThread.start();
+                    //Toast.makeText(requireContext(), R.string.deleted_backup, Toast.LENGTH_LONG).show();
+                    Toast.makeText(requireContext(), "Sorry not implemented yet", Toast.LENGTH_LONG).show();
                 })
                 .setNegativeButton(R.string.dialogNo, null)
                 .show());

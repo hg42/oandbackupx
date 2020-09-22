@@ -118,7 +118,7 @@ public class BackupAppAction extends BaseAppAction {
     }
 
     protected void saveBackupProperties(@NonNull StorageFile backupInstanceDir, @NotNull BackupProperties properties) throws IOException {
-        StorageFile propertiesFile = backupInstanceDir.createFile("application/json", BackupProperties.PROPERTIES_FILENAME);
+        StorageFile propertiesFile = backupInstanceDir.createFile("application/octet-stream", BackupProperties.PROPERTIES_FILENAME);
         try (BufferedOutputStream propertiesOut = new BufferedOutputStream(this.getContext().getContentResolver().openOutputStream(propertiesFile.getUri(), "w"))) {
             propertiesOut.write(properties.toGson().getBytes(StandardCharsets.UTF_8));
         }

@@ -37,7 +37,7 @@ public class AppInfoV2 {
     private final Context context;
     private final String packageName;
     private AppMetaInfo metaInfo;
-    private List<BackupItem> backupHistory;
+    private List<BackupItem> backupHistory = new ArrayList<>();
     private Uri backupDir;
     private StorageStats storageStats;
 
@@ -102,9 +102,9 @@ public class AppInfoV2 {
         StorageFile packageBackupRoot = StorageFile.fromUri(context, backupRoot).findFile(this.packageName);
         if (packageBackupRoot != null) {
             this.backupDir = packageBackupRoot.getUri();
+            this.backupHistory = AppInfoV2.getBackupHistory(context, this.backupDir);
         }
         this.metaInfo = new AppMetaInfo(context, packageInfo);
-        this.backupHistory = AppInfoV2.getBackupHistory(context, this.backupDir);
         this.refreshStorageStats();
     }
 
