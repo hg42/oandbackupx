@@ -83,6 +83,10 @@ public abstract class BaseAppAction {
     public void killPackage(String packageName) {
         try {
             ApplicationInfo applicationInfo = this.context.getPackageManager().getApplicationInfo(packageName, 0);
+            if (applicationInfo.uid == 1000) {
+                Log.w(BaseAppAction.TAG, "Requested to kill processes of UID 1000. Refusing to kill system's processes!");
+                return;
+            }
             ShellHandler.runAsRoot(String.format("ps -o PID -u %d | grep -v PID | xargs kill", applicationInfo.uid));
         } catch (PackageManager.NameNotFoundException e) {
             Log.w(BaseAppAction.TAG, packageName + " does not exist. Cannot kill any processes!");
