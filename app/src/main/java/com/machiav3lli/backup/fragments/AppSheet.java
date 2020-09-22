@@ -271,13 +271,17 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         this.binding.wipeCache.setOnClickListener(v -> {
             try {
                 Log.i(AppSheet.TAG, String.format("%s: Wiping cache", this.app));
-                // Todo: Reenable Wipe Cache functionality
-                String command = ShellCommands.wipeCacheCommand(this.requireContext(), this.app);
-                ShellHandler.runAsRoot(command);
-                requireMainActivity().refreshWithAppSheet();
-            } catch (ShellHandler.ShellCommandFailedException e) {
+                ShellCommands.wipeCache(this.requireContext(), this.app);
+                this.requireMainActivity().refreshWithAppSheet();
+            } catch (ShellCommands.ShellActionFailedException e) {
                 // Not a critical issue
-                Log.w(AppSheet.TAG, "Cache couldn't be deleted: " + CommandUtils.iterableToString(e.getShellResult().getErr()));
+                String errorMessage;
+                if (e.getCause() instanceof ShellHandler.ShellCommandFailedException) {
+                    errorMessage = String.join(" ", ((ShellHandler.ShellCommandFailedException) e.getCause()).getShellResult().getErr());
+                } else {
+                    errorMessage = e.getCause().getMessage();
+                }
+                Log.w(AppSheet.TAG, "Cache couldn't be deleted: " + errorMessage);
             }
         });
         binding.backup.setOnClickListener(v -> {
