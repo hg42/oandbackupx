@@ -87,6 +87,7 @@ public final class TarUtils {
                     entry = new TarArchiveEntry(file.getFilepath());
                     entry.setSize(file.getFilesize());
                     entry.setNames(file.getOwner(), file.getGroup());
+                    entry.setMode(file.getFilemode());
                     archive.putArchiveEntry(entry);
                     try {
                         ShellHandler.quirkLibsuReadFileWorkaround(file, archive);
@@ -101,6 +102,7 @@ public final class TarUtils {
                 case DIRECTORY:
                     entry = new TarArchiveEntry(file.getFilepath(), TarConstants.LF_DIR);
                     entry.setNames(file.getOwner(), file.getGroup());
+                    entry.setMode(file.getFilemode());
                     archive.putArchiveEntry(entry);
                     archive.closeArchiveEntry();
                     break;
@@ -108,12 +110,14 @@ public final class TarUtils {
                     entry = new TarArchiveEntry(file.getFilepath(), TarConstants.LF_LINK);
                     entry.setLinkName(file.getLinkName());
                     entry.setNames(file.getOwner(), file.getGroup());
+                    entry.setMode(file.getFilemode());
                     archive.putArchiveEntry(entry);
                     archive.closeArchiveEntry();
                     break;
                 case NAMED_PIPE:
                     entry = new TarArchiveEntry(file.getFilepath(), TarConstants.LF_FIFO);
                     entry.setNames(file.getOwner(), file.getGroup());
+                    entry.setMode(file.getFilemode());
                     archive.putArchiveEntry(entry);
                     archive.closeArchiveEntry();
                     break;
@@ -132,10 +136,10 @@ public final class TarUtils {
                 ShellHandler.runAsRoot(String.format("mkdir \"%s\"", file.getAbsolutePath()));
                 TarUtils.suUncompressTo(archive, targetDir);
             } else if (tarEntry.isFile()) {
-                try (SuFileOutputStream fos = new SuFileOutputStream(SuFile.open(targetDir,  tarEntry.getName()))) {
+                try (SuFileOutputStream fos = new SuFileOutputStream(SuFile.open(targetDir, tarEntry.getName()))) {
                     IOUtils.copy(archive, fos, TarUtils.BUFFERSIZE);
                 }
-            } else if (tarEntry.isSymbolicLink()) {
+            } else if (tarEntry.isLink() || tarEntry.isSymbolicLink()) {
                 ShellHandler.runAsRoot(
                         String.format(
                                 "cd \"%s\" && ln -s \"%s\" \"%s\"; cd -", targetDir, file.getAbsolutePath(), tarEntry.getLinkName()
@@ -154,24 +158,33 @@ public final class TarUtils {
     public static void uncompressTo(TarArchiveInputStream archive, File targetDir) throws IOException {
         TarArchiveEntry tarEntry;
         while ((tarEntry = archive.getNextTarEntry()) != null) {
-            final File file = new File(targetDir, tarEntry.getName());
+            final File targetPath = new File(targetDir, tarEntry.getName());
+            boolean doChmod = true;
             if (tarEntry.isDirectory()) {
-                if (!file.mkdirs()) {
-                    throw new IOException("Unable to create folder " + file.getAbsolutePath());
+                if (!targetPath.mkdirs()) {
+                    throw new IOException("Unable to create folder " + targetPath.getAbsolutePath());
                 }
-            } else if (tarEntry.isSymbolicLink()) {
+            } else if (tarEntry.isLink() || tarEntry.isSymbolicLink()) {
                 try {
-                    Os.symlink(tarEntry.getLinkName(), targetDir + tarEntry.getFile().getPath());
+                    Os.symlink(tarEntry.getLinkName(), targetPath.getAbsolutePath());
                 } catch (ErrnoException e) {
-                    e.printStackTrace();
+                    throw new IOException(String.format("Unable to create symlink: %s -> %s : %s", tarEntry.getLinkName(), targetPath.getAbsolutePath(), e));
                 }
+                doChmod = false;
             } else {
-                final File parent = file.getParentFile();
+                final File parent = targetPath.getParentFile();
                 if (!parent.exists() && !parent.mkdirs()) {
                     throw new IOException("Unable to create folder " + parent.getAbsolutePath());
                 }
-                try (FileOutputStream fos = new FileOutputStream(file)) {
+                try (FileOutputStream fos = new FileOutputStream(targetPath)) {
                     IOUtils.copy(archive, fos);
+                }
+            }
+            if (doChmod) {
+                try {
+                    Os.chmod(targetPath.getAbsolutePath(), tarEntry.getMode());
+                } catch (ErrnoException e) {
+                    throw new IOException(String.format("Unable to chmod %s to %s: %s", targetPath, tarEntry.getMode(), e));
                 }
             }
         }
