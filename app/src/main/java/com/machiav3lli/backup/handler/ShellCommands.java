@@ -143,6 +143,12 @@ public class ShellCommands {
             // it seems that busybox mount sometimes fails silently so use toolbox instead
             String apkSubDir = getName(sourceDir);
             apkSubDir = apkSubDir.substring(0, apkSubDir.lastIndexOf('.'));
+            if (apkSubDir.isEmpty()) {
+                final String error = "Variable apkSubDir in uninstall method is empty. This is used "
+                        + "in a recursive rm call and would cause catastrophic damage!";
+                Log.wtf(TAG, error);
+                throw new IllegalArgumentException(error);
+            }
             command = "(mount -o remount,rw /system" + " && " +
                     String.format("%s rm %s", Constants.UTILBOX_PATH, sourceDir) + " ; " +
                     String.format("rm -r /system/app/%s", apkSubDir) + " ; " +
