@@ -103,7 +103,7 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
         });
         handleMessages = new HandleMessages(requireContext());
         ArrayList<String> users = savedInstanceState != null ? savedInstanceState.getStringArrayList(Constants.BUNDLE_USERS) : new ArrayList<>();
-        shellCommands = new ShellCommands(requireContext(), users);
+        shellCommands = new ShellCommands(users);
         return sheet;
     }
 
@@ -408,23 +408,31 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
 
     public void displayDialogEnableDisable(final String packageName, final boolean enable) {
         String title = enable ? getString(R.string.enablePackageTitle) : getString(R.string.disablePackageTitle);
-        final ArrayList<String> selectedUsers = new ArrayList<>();
-        final ArrayList<String> userList = (ArrayList<String>) shellCommands.getUsers();
-        CharSequence[] users = userList.toArray(new CharSequence[0]);
-        new AlertDialog.Builder(requireContext())
-                .setTitle(title)
-                .setMultiChoiceItems(users, null, (dialog, chosen, checked) -> {
-                    if (checked) {
-                        selectedUsers.add(userList.get(chosen));
-                    } else selectedUsers.remove(userList.get(chosen));
-                })
-                .setPositiveButton(R.string.dialogOK, (dialog, which) -> {
-                    shellCommands.enableDisablePackage(packageName, selectedUsers, enable);
-                    requireMainActivity().refreshWithAppSheet();
-                })
-                .setNegativeButton(R.string.dialogCancel, (dialog, which) -> {
-                })
-                .show();
+        try {
+            final ArrayList<String> userList = (ArrayList<String>) this.shellCommands.getUsers();
+            CharSequence[] users = userList.toArray(new CharSequence[0]);
+            final ArrayList<String> selectedUsers = new ArrayList<>();
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(title)
+                    .setMultiChoiceItems(users, null, (dialog, chosen, checked) -> {
+                        if (checked) {
+                            selectedUsers.add(userList.get(chosen));
+                        } else selectedUsers.remove(userList.get(chosen));
+                    })
+                    .setPositiveButton(R.string.dialogOK, (dialog, which) -> {
+                        try {
+                            this.shellCommands.enableDisablePackage(packageName, selectedUsers, enable);
+                            this.requireMainActivity().refreshWithAppSheet();
+                        } catch (ShellCommands.ShellActionFailedException e) {
+                            UIUtils.showError(this.requireActivity(), e.getMessage());
+                        }
+                    })
+                    .setNegativeButton(R.string.dialogCancel, (dialog, which) -> {
+                    })
+                    .show();
+        } catch (ShellCommands.ShellActionFailedException e) {
+            UIUtils.showError(this.requireActivity(), e.getMessage());
+        }
     }
 
     private MainActivityX requireMainActivity() {

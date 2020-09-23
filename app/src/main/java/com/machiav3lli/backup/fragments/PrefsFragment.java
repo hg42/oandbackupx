@@ -22,7 +22,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.provider.DocumentsContract;
 import android.text.InputType;
 import android.util.Log;
 import android.widget.Toast;
@@ -40,14 +39,12 @@ import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.R;
 import com.machiav3lli.backup.activities.MainActivityX;
 import com.machiav3lli.backup.activities.PrefsActivity;
-import com.machiav3lli.backup.handler.BackendController;
 import com.machiav3lli.backup.handler.HandleMessages;
 import com.machiav3lli.backup.handler.NotificationHelper;
 import com.machiav3lli.backup.handler.ShellCommands;
-import com.machiav3lli.backup.items.AppInfo;
 import com.machiav3lli.backup.items.AppInfoV2;
-import com.machiav3lli.backup.utils.FileUtils;
 import com.machiav3lli.backup.utils.PrefUtils;
+import com.machiav3lli.backup.utils.UIUtils;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -65,7 +62,7 @@ public class PrefsFragment extends PreferenceFragmentCompat {
         setPreferencesFromResource(R.xml.preferences, rootKey);
         Preference pref;
         ArrayList<String> users = requireActivity().getIntent().getStringArrayListExtra("com.machiav3lli.backup.users");
-        ShellCommands shellCommands = new ShellCommands(requireContext(), users);
+        ShellCommands shellCommands = new ShellCommands(users);
         handleMessages = new HandleMessages(requireContext());
 
         pref = findPreference(Constants.PREFS_THEME);
@@ -175,7 +172,13 @@ public class PrefsFragment extends PreferenceFragmentCompat {
         new AlertDialog.Builder(requireActivity())
                 .setTitle(R.string.prefs_quickreboot)
                 .setMessage(R.string.quickRebootMessage)
-                .setPositiveButton(R.string.dialogYes, (dialog, which) -> shellCommands.quickReboot())
+                .setPositiveButton(R.string.dialogYes, (dialog, which) -> {
+                    try {
+                        shellCommands.quickReboot();
+                    } catch (ShellCommands.ShellActionFailedException e) {
+                        UIUtils.showError(this.requireActivity(), e.getMessage());
+                    }
+                })
                 .setNegativeButton(R.string.dialogNo, null)
                 .show();
         return true;

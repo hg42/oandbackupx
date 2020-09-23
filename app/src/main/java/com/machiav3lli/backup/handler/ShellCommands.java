@@ -39,22 +39,30 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static com.machiav3lli.backup.utils.CommandUtils.iterableToString;
 import static com.machiav3lli.backup.utils.FileUtils.getName;
 
 public class ShellCommands {
     private static final String TAG = Constants.classTag(".ShellCommands");
-    private static String errors = "";
-    private final Context context;
     boolean multiuserEnabled;
-    private ArrayList<String> users;
+    private List<String> users;
 
-    public ShellCommands(Context context, List<String> users) {
+    public ShellCommands(List<String> users) {
         this.users = (ArrayList<String>) users;
-        this.context = context;
-        this.users = (ArrayList<String>) getUsers();
-        multiuserEnabled = this.users != null && this.users.size() > 1;
+        try {
+            this.users = this.getUsers();
+        } catch (ShellActionFailedException e) {
+            this.users = null;
+            String error = null;
+            if (e.getCause() != null && e.getCause() instanceof ShellHandler.ShellCommandFailedException) {
+                error = String.join(" ", ((ShellHandler.ShellCommandFailedException) e.getCause()).getShellResult().getErr());
+            }
+            Log.e(TAG, "Could not load list of users: " + e +
+                    (error != null ? " ; " + error : ""));
+        }
+        this.multiuserEnabled = this.users != null && this.users.size() > 1;
     }
 
     public static void deleteBackup(File file) {
@@ -63,25 +71,6 @@ public class ShellCommands {
                 for (File child : Objects.requireNonNull(file.listFiles()))
                     deleteBackup(child);
             file.delete();
-        }
-    }
-
-    public static void writeErrorLog(Context context, String packageName, String err) {
-        errors += String.format("%s: %s%n", packageName, err);
-        Date date = new Date();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd - HH:mm:ss", Locale.getDefault());
-        String dateFormated = dateFormat.format(date);
-        try {
-            File outFile = new LogUtils().createLogFile(context, FileUtils.getDefaultLogFilePath(context).toString());
-            if (outFile != null) {
-                try (FileWriter fw = new FileWriter(outFile.getAbsoluteFile(),
-                        true);
-                     BufferedWriter bw = new BufferedWriter(fw)) {
-                    bw.write(String.format("%s: %s [%s]%n", dateFormated, err, packageName));
-                }
-            }
-        } catch (IOException e) {
-            Log.e(TAG, e.toString());
         }
     }
 
@@ -98,61 +87,27 @@ public class ShellCommands {
         return 0;
     }
 
-    public static List<String> getDisabledPackages() {
-        Shell.Result shellResult = ShellCommands.runAsUser("pm list packages -d");
-        ArrayList<String> packages = new ArrayList<>();
-        for (String line : shellResult.getOut()) {
-            if (line.contains(":")) {
-                packages.add(line.substring(line.indexOf(":") + 1).trim());
-            }
+    public static List<String> getDisabledPackages() throws ShellActionFailedException {
+        final String command = "pm list packages -d";
+        try {
+            Shell.Result result = ShellHandler.runAsUser(command);
+            return result.getOut().stream()
+                    .filter(line -> line.contains("s"))
+                    .map(line -> line.substring(line.indexOf(':') + 1).trim())
+                    .collect(Collectors.toList());
+        } catch (ShellHandler.ShellCommandFailedException e) {
+            throw new ShellActionFailedException(command, "Could not fetch disabled packages", e);
         }
-        if (shellResult.isSuccess() && !packages.isEmpty()) {
-            return packages;
-        }
-        return new ArrayList<>();
-    }
-
-    protected static Shell.Result runAsRoot(String... commands) {
-        return ShellCommands.runShellCommand(Shell::su, null, commands);
-    }
-
-    protected static Shell.Result runAsUser(String... commands) {
-        return ShellCommands.runShellCommand(Shell::sh, null, commands);
-    }
-
-    protected static Shell.Result runAsRoot(Collection<String> errors, String... commands) {
-        return ShellCommands.runShellCommand(Shell::su, errors, commands);
-    }
-
-    protected static Shell.Result runAsUser(Collection<String> errors, String... commands) {
-        return ShellCommands.runShellCommand(Shell::sh, errors, commands);
-    }
-
-    private static Shell.Result runShellCommand(RunnableShellCommand c, Collection<String> errors, String... commands) {
-        // defining stdout and stderr on our own
-        // otherwise we would have to set set the flag redirect stderr to stdout:
-        // Shell.Config.setFlags(Shell.FLAG_REDIRECT_STDERR);
-        // stderr is used for logging, so it's better not to call an application that does that
-        // and keeps quiet
-        List<String> stdout = new ArrayList<>();
-        List<String> stderr = new ArrayList<>();
-        Log.d(TAG, "Running Command: " + iterableToString("; ", commands));
-        Shell.Result result = c.runCommand(commands).to(stdout, stderr).exec();
-        Log.d(TAG, String.format("Command(s) '%s' ended with %d", Arrays.toString(commands), result.getCode()));
-        if (!result.isSuccess() && errors != null) {
-            errors.addAll(stderr);
-        }
-        return result;
     }
 
     public static void wipeCache(Context context, AppInfoV2 app) throws ShellActionFailedException {
-        final String conditionalDeleteTemplate = "\\\n && if [ -d \"%s\" ]; then rm -rf \"%s/\"* ; fi";
         Log.i(TAG, String.format("%s: Wiping cache", app.getPackageName()));
         StringBuilder commandBuilder = new StringBuilder();
         // Normal app cache always exists
         commandBuilder.append(String.format("rm -rf \"%s/cache/\"* \"%s/code_cache/\"*", app.getDataDir(), app.getDataDir()));
 
         // device protected data cache, might exist or not
+        final String conditionalDeleteTemplate = "\\\n && if [ -d \"%s\" ]; then rm -rf \"%s/\"* ; fi";
         if (!app.getDeviceProtectedDataDir().isEmpty()) {
             String cacheDir = new File(app.getDeviceProtectedDataDir(), "cache").getAbsolutePath();
             String codeCacheDir = new File(app.getDeviceProtectedDataDir(), "code_cache").getAbsolutePath();
@@ -211,47 +166,48 @@ public class ShellCommands {
         }
     }
 
-    public void enableDisablePackage(String packageName, List<String> users, boolean enable) {
+    public void enableDisablePackage(String packageName, List<String> users, boolean enable) throws ShellActionFailedException {
         String option = enable ? "enable" : "disable";
         if (users != null && !users.isEmpty()) {
             List<String> commands = new ArrayList<>();
             for (String user : users) {
                 commands.add(String.format("pm %s --user %s %s", option, user, packageName));
             }
-            Shell.Result shellResult = ShellCommands.runAsRoot(String.join(" && ", commands));
-            if (!shellResult.isSuccess()) {
-                for (String line : shellResult.getErr()) {
-                    ShellCommands.writeErrorLog(context, packageName, line);
-                }
+            final String command = String.join(" && ", commands);
+            try {
+                ShellHandler.runAsRoot(command);
+            } catch (ShellHandler.ShellCommandFailedException e) {
+                throw new ShellActionFailedException(command, String.format(
+                        "Could not %s package %s", option, packageName), e);
             }
         }
     }
 
-    public List<String> getUsers() {
-        if (users != null && !users.isEmpty()) {
-            return users;
-        } else {
-            Shell.Result shellResult = ShellCommands.runAsRoot(String.format("pm list users | %s sed -nr 's/.*\\{([0-9]+):.*/\\1/p'", Constants.UTILBOX_PATH));
-            ArrayList<String> usersNew = new ArrayList<>();
-            for (String line : shellResult.getOut()) {
-                if (line.trim().length() != 0)
-                    usersNew.add(line.trim());
-            }
-            return shellResult.isSuccess() ? usersNew : new ArrayList<>();
+    public List<String> getUsers() throws ShellActionFailedException {
+        if (this.users != null && !this.users.isEmpty()) {
+            return this.users;
+        }
+        final String command = String.format("pm list users | %s sed -nr 's/.*\\{([0-9]+):.*/\\1/p'", Constants.UTILBOX_PATH);
+        try {
+            Shell.Result result = ShellHandler.runAsRoot(command);
+
+            List<String> usersNew = result.getOut().stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
+            return usersNew;
+        } catch (ShellHandler.ShellCommandFailedException e) {
+            throw new ShellActionFailedException(command, "Could not fetch list of users", e);
         }
     }
 
-    public void quickReboot() {
-        Shell.Result shellResult = ShellCommands.runAsRoot(String.format("%s pkill system_server", Constants.UTILBOX_PATH));
-        if (!shellResult.isSuccess()) {
-            for (String line : shellResult.getErr()) {
-                ShellCommands.writeErrorLog(this.context, "", line);
-            }
+    public void quickReboot() throws ShellActionFailedException {
+        final String command = String.format("%s pkill system_server", Constants.UTILBOX_PATH);
+        try {
+            ShellHandler.runAsRoot(command);
+        } catch (ShellHandler.ShellCommandFailedException e) {
+            throw new ShellActionFailedException(command, "Could not kill system_server", e);
         }
-    }
-
-    protected interface RunnableShellCommand {
-        Shell.Job runCommand(String... commands);
     }
 
     public static class ShellActionFailedException extends Exception {
