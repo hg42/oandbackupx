@@ -3,8 +3,6 @@ package com.machiav3lli.backup.items;
 import android.content.Context;
 import android.net.Uri;
 
-import androidx.documentfile.provider.DocumentFile;
-
 import com.machiav3lli.backup.Constants;
 import com.machiav3lli.backup.handler.StorageFile;
 import com.machiav3lli.backup.utils.FileUtils;
@@ -20,7 +18,6 @@ public class BackupItem {
     public static final String BACKUP_FILE_DPD = "protecteddata";
     public static final String BACKUP_FILE_EXT_DATA = "extData";
     public static final String BACKUP_DIR_OBB = "obb";
-
 
     private static final String TAG = Constants.classTag(".BackupItem");
     private final BackupProperties backupProperties;
@@ -70,6 +67,7 @@ public class BackupItem {
         BrokenBackupException(String message) {
             this(message, null);
         }
+
         BrokenBackupException(String message, Throwable cause) {
             super(message, cause);
         }
@@ -77,5 +75,14 @@ public class BackupItem {
 
     public BackupProperties getBackupProperties() {
         return this.backupProperties;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("BackupItem{ packageName=\"%s\", packageLabel=\"%s\", backupDate=\"%s\" }",
+                this.backupProperties.getPackageName(),
+                this.backupProperties.getPackageLabel(),
+                this.backupProperties.getBackupDate()
+        );
     }
 }

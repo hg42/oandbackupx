@@ -65,15 +65,6 @@ public class ShellCommands {
         this.multiuserEnabled = this.users != null && this.users.size() > 1;
     }
 
-    public static void deleteBackup(File file) {
-        if (file.exists()) {
-            if (file.isDirectory() && Objects.requireNonNull(file.list()).length > 0)
-                for (File child : Objects.requireNonNull(file.listFiles()))
-                    deleteBackup(child);
-            file.delete();
-        }
-    }
-
     public static int getCurrentUser() {
         try {
             // using reflection to get id of calling user since method getCallingUserId of UserHandle is hidden

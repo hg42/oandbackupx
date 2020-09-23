@@ -140,13 +140,13 @@ public class AppInfoV2 {
             this.storageStats = BackendController.getPackageStorageStats(this.context, this.getPackageName());
             return true;
         } catch (PackageManager.NameNotFoundException e) {
-            Log.e(TAG, "Could not refresh StorageStats. Package was not found: " + e.getMessage());
+            Log.e(AppInfoV2.TAG, "Could not refresh StorageStats. Package was not found: " + e.getMessage());
             return false;
         }
     }
 
     public boolean refreshFromPackageManager(Context context) {
-        Log.d(TAG, String.format("Trying to refresh package information for %s from PackageManager", this.getPackageName()));
+        Log.d(AppInfoV2.TAG, String.format("Trying to refresh package information for %s from PackageManager", this.getPackageName()));
         try {
             this.packageInfo = context.getPackageManager().getPackageInfo(this.packageName, 0);
             this.metaInfo = new AppMetaInfo(context, this.packageInfo);
@@ -155,6 +155,29 @@ public class AppInfoV2 {
             return false;
         }
         return true;
+    }
+
+    public void refreshBackupHistory() {
+        this.backupHistory = AppInfoV2.getBackupHistory(this.context, this.backupDir);
+    }
+
+    public void deleteAllBackups() {
+        Log.i(AppInfoV2.TAG, String.format("Deleting %s backups of %s", this.backupHistory.size(), this));
+        for (BackupItem item : this.backupHistory) {
+            this.delete(this.context, item);
+        }
+        this.backupHistory.clear();
+    }
+
+    public void delete(Context context, BackupItem backupItem) {
+        if (!backupItem.getBackupProperties().getPackageName().equals(this.packageName)) {
+            throw new RuntimeException("Asked to delete a backup of "
+                    + backupItem.getBackupProperties().getPackageName()
+                    + " but this object is for " + this.getPackageName());
+        }
+        Log.d(AppInfoV2.TAG, "Deleting " + this);
+        DocumentHelper.deleteRecursive(context, backupItem.getBackupLocation());
+        this.backupHistory.remove(backupItem);
     }
 
     public Uri getBackupDir(boolean create) throws FileUtils.BackupLocationInAccessibleException, PrefUtils.StorageLocationNotConfiguredException {

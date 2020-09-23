@@ -309,20 +309,21 @@ public class AppSheet extends BottomSheetDialogFragment implements ActionListene
                 dialog.show(requireActivity().getSupportFragmentManager(), "restoreDialog");
             }
         });
-        binding.delete.setOnClickListener(v -> new AlertDialog.Builder(requireContext())
-                .setTitle(app.getAppInfo().getPackageLabel())
+        binding.delete.setOnClickListener(v -> new AlertDialog.Builder(this.requireContext())
+                .setTitle(this.app.getAppInfo().getPackageLabel())
                 .setMessage(R.string.deleteBackupDialogMessage)
                 .setPositiveButton(R.string.dialogYes, (dialog, which) -> {
-                    Thread deleteBackupThread = new Thread(() -> {
-                        handleMessages.showMessage(app.getAppInfo().getPackageLabel(), getString(R.string.deleteBackup));
-                        if (backupDir != null)
-                            ShellCommands.deleteBackup(new File(backupDir, app.getPackageName()));
-                        handleMessages.endMessage();
-                        requireMainActivity().refreshWithAppSheet();
-                    });
-                    //deleteBackupThread.start();
-                    //Toast.makeText(requireContext(), R.string.deleted_backup, Toast.LENGTH_LONG).show();
-                    Toast.makeText(requireContext(), "Sorry not implemented yet", Toast.LENGTH_LONG).show();
+                    new Thread(() -> {
+                        this.handleMessages.showMessage(this.app.getAppInfo().getPackageLabel(), getString(R.string.deleteBackup));
+                        if (!this.app.hasBackups()) {
+                            Log.w(AppSheet.TAG, "UI Issue! Tried to delete backups for app without backups.");
+                            return;
+                        }
+                        // Latest backup only currently
+                        this.app.delete(this.requireContext(), this.app.getLatestBackup());
+                        this.handleMessages.endMessage();
+                        this.requireMainActivity().refreshWithAppSheet();
+                    }).start();
                 })
                 .setNegativeButton(R.string.dialogNo, null)
                 .show());

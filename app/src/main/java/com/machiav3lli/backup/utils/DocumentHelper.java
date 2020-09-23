@@ -53,8 +53,12 @@ public final class DocumentHelper {
         if (target.isDirectory()) {
             try {
                 StorageFile[] contents = target.listFiles();
+                boolean result = true;
                 for (StorageFile file : contents) {
-                    return DocumentHelper.deleteRecursive(file);
+                    result = DocumentHelper.deleteRecursive(file);
+                }
+                if (result) {
+                    target.delete();
                 }
             } catch (FileNotFoundException e) {
                 return false;

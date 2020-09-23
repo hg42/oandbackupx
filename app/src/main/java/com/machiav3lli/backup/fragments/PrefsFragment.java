@@ -258,15 +258,10 @@ public class PrefsFragment extends PreferenceFragmentCompat {
     public void deleteBackups(List<AppInfoV2> deleteList) {
         handleMessages.showMessage(getString(R.string.batchDeleteMessage), "");
         for (AppInfoV2 appInfo : deleteList) {
-            if (backupDir != null) {
-                handleMessages.changeMessage(getString(R.string.batchDeleteMessage), appInfo.getAppInfo().getPackageLabel());
-                Log.i(TAG, "deleting backup of " + appInfo.getAppInfo().getPackageLabel());
-                File backupSubDir = new File(backupDir, appInfo.getPackageName());
-                // Todo: This does not work. It must use SAF
-                ShellCommands.deleteBackup(backupSubDir);
-            } else {
-                Log.e(TAG, "PrefsActivity.deleteBackups: backupDir null");
-            }
+            handleMessages.changeMessage(getString(R.string.batchDeleteMessage), appInfo.getAppInfo().getPackageLabel());
+            Log.i(TAG, "deleting backups of " + appInfo.getAppInfo().getPackageLabel());
+            appInfo.deleteAllBackups();
+            appInfo.refreshBackupHistory();
         }
         handleMessages.endMessage();
         NotificationHelper.showNotification(requireContext(), PrefsActivity.class, (int) System.currentTimeMillis(), getString(R.string.batchDeleteNotificationTitle), getString(R.string.batchDeleteBackupsDeleted) + " " + deleteList.size(), false);
