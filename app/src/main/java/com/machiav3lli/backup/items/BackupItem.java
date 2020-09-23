@@ -53,6 +53,12 @@ public class BackupItem {
             throw new BrokenBackupException(String.format("Cannot read %s at URI %s",
                     BackupProperties.PROPERTIES_FILENAME,
                     propertiesFile.getUri()), e);
+        } catch (Exception e) {
+            throw new BrokenBackupException(String.format(
+                    "Unable to process %s at URI %s. [%s] %s",
+                    BackupProperties.PROPERTIES_FILENAME,
+                    propertiesFile.getUri(),
+                    e.getClass().getCanonicalName(), e));
         }
     }
 
