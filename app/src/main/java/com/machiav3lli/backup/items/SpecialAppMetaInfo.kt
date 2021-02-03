@@ -77,27 +77,19 @@ open class SpecialAppMetaInfo : AppMetaInfo, Parcelable {
 
                 specialPackages
                         .add(AppInfo(context, SpecialAppMetaInfo(
-                                "special.accounts",
-                                specPrefix + context.getString(R.string.spec_accounts),
-                                Build.VERSION.RELEASE,
-                                Build.VERSION.SDK_INT, arrayOf(
-                                "/data/system_ce/$userId/accounts_ce.db"
-                        ))))
-                specialPackages
-                        .add(AppInfo(context, SpecialAppMetaInfo(
-                                "special.appwidgets",
-                                specPrefix + context.getString(R.string.spec_appwidgets),
-                                Build.VERSION.RELEASE,
-                                Build.VERSION.SDK_INT, arrayOf(
-                                "$userDir/appwidgets.xml"
-                        ))))
-                specialPackages
-                        .add(AppInfo(context, SpecialAppMetaInfo(
                                 "special.bluetooth",
                                 specPrefix + context.getString(R.string.spec_bluetooth),
                                 Build.VERSION.RELEASE,
                                 Build.VERSION.SDK_INT, arrayOf(
                                 "/data/misc/bluedroid/"
+                        ))))
+                specialPackages
+                        .add(AppInfo(context, SpecialAppMetaInfo(
+                                "special.wifi.access.points",
+                                specPrefix + context.getString(R.string.spec_wifiAccessPoints),
+                                Build.VERSION.RELEASE,
+                                Build.VERSION.SDK_INT, arrayOf(
+                                "/data/misc/wifi/WifiConfigStore.xml"
                         ))))
                 specialPackages
                         .add(AppInfo(context, SpecialAppMetaInfo(
@@ -110,20 +102,42 @@ open class SpecialAppMetaInfo : AppMetaInfo, Parcelable {
                         ))))
                 specialPackages
                         .add(AppInfo(context, SpecialAppMetaInfo(
-                                "special.wallpaper",
+                                "special.users",
+                                specPrefix + context.getString(R.string.spec_users),
+                                Build.VERSION.RELEASE,
+                                Build.VERSION.SDK_INT, arrayOf(
+                                "/data/system/users/",
+                                "/data/misc_ce/",
+                                "/data/misc_de/",
+                                "/data/system_ce/",
+                                "/data/system_de/",
+                                "/data/vendor_ce/",
+                                "/data/vendor_de/"
+                        ))))
+                specialPackages
+                        .add(AppInfo(context, SpecialAppMetaInfo(
+                                "special.user.accounts",
+                                specPrefix + context.getString(R.string.spec_accounts),
+                                Build.VERSION.RELEASE,
+                                Build.VERSION.SDK_INT, arrayOf(
+                                "/data/system_ce/$userId/accounts_ce.db"
+                        ))))
+                specialPackages
+                        .add(AppInfo(context, SpecialAppMetaInfo(
+                                "special.user.appwidgets",
+                                specPrefix + context.getString(R.string.spec_appwidgets),
+                                Build.VERSION.RELEASE,
+                                Build.VERSION.SDK_INT, arrayOf(
+                                "$userDir/appwidgets.xml"
+                        ))))
+                specialPackages
+                        .add(AppInfo(context, SpecialAppMetaInfo(
+                                "special.user.wallpaper",
                                 specPrefix + context.getString(R.string.spec_wallpaper),
                                 Build.VERSION.RELEASE,
                                 Build.VERSION.SDK_INT, arrayOf(
                                 "$userDir/wallpaper",
                                 "$userDir/wallpaper_info.xml"
-                        ))))
-                specialPackages
-                        .add(AppInfo(context, SpecialAppMetaInfo(
-                                "special.wifi.access.points",
-                                specPrefix + context.getString(R.string.spec_wifiAccessPoints),
-                                Build.VERSION.RELEASE,
-                                Build.VERSION.SDK_INT, arrayOf(
-                                "/data/misc/wifi/WifiConfigStore.xml"
                         ))))
             }
             return specialPackages
