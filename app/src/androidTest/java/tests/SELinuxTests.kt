@@ -10,7 +10,7 @@ import timber.log.Timber
 class SELinuxTests {
 
     @Test
-    @DisplayName("suGetOwnerGroupContext extracts valid context")
+    @DisplayName("suGetOwnerGroupContext() extracts valid context")
     fun test_suGetOwnerGroupContext() {
         val userGroupContext = ShellHandler().suGetOwnerGroupContext("/")
         val context = userGroupContext[2]

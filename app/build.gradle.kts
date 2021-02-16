@@ -186,3 +186,50 @@ tasks.withType<Test> {
     }
 }
 
+
+/*
+
+val xTests = tasks.register("xTests", Test::class) {
+    useJUnitPlatform {
+        group = "_tests"
+        dependsOn(tasks.assemble)
+        //includeTags("fast")
+        excludeTags("explore", "slow")
+        //includeEngines("junit-jupiter")
+        // excludeEngines "junit-vintage"
+        shouldRunAfter("test")
+    }
+}
+
+val deviceTests = task<Test>("deviceTests") {
+    useJUnitPlatform {
+        group = "_tests"
+        //includeTags('fast')
+        excludeTags("explore", "slow")
+        includeEngines("junit-jupiter")
+        // excludeEngines "junit-vintage"
+    }
+}
+
+val uiTests = task<Test>("uiTests") {
+    useJUnitPlatform {
+        group = "_tests"
+        includeTags("ui")
+        excludeTags("explore", "slow")
+        includeEngines("junit-jupiter")
+        // excludeEngines "junit-vintage"
+    }
+}
+*/
+
+val fastTests = task<Test>("fastTests") {
+    useJUnitPlatform {
+        group = "_tests"
+        //includeTags("fast")
+        excludeTags("explore", "slow")
+        includeEngines("junit-jupiter")
+        // excludeEngines "junit-vintage"
+    }
+}
+
+tasks.check { dependsOn(fastTests) }

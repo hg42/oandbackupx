@@ -4,6 +4,7 @@ import com.machiav3lli.backup.handler.LogsHandler
 import com.machiav3lli.backup.handler.ShellHandler
 import com.machiav3lli.backup.handler.ShellHandler.Companion.quote
 import com.machiav3lli.backup.handler.ShellHandler.Companion.runAsRoot
+import com.machiav3lli.backup.utils.iterableToString
 import com.topjohnwu.superuser.Shell
 import org.jetbrains.annotations.TestOnly
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -26,13 +27,13 @@ class ShellTests {
             try {
                 if (check == "api") {
                     val shellInput = "x".repeat(length)
-                    shellResult = ShellHandler.runAsRoot("$commandStub '$shellInput' | wc -c")
+                    shellResult = runAsRoot("$commandStub '$shellInput' | wc -c")
                 }
                 if (check == "shell") {
-                    shellResult = ShellHandler.runAsRoot("$commandStub \$(yes xxxxxxxxxx|tr -d \"\\n\"|head -c $length) | wc -c")
+                    shellResult = runAsRoot("$commandStub \$(yes xxxxxxxxxx|tr -d \"\\n\"|head -c $length) | wc -c")
                 }
                 shellResult?.let {
-                    return it.out.joinToString("").toInt() == length
+                    return iterableToString(it.out).toInt() == length
                 }
             } catch (e: OutOfMemoryError) {
                 LogsHandler.logException(e, "length: $length")
