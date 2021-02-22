@@ -20,6 +20,7 @@ package com.machiav3lli.backup.actions
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import com.machiav3lli.backup.BuildConfig
 import com.machiav3lli.backup.handler.LogsHandler
 import com.machiav3lli.backup.handler.ShellHandler
 import com.machiav3lli.backup.handler.ShellHandler.Companion.runAsRoot
@@ -104,6 +105,7 @@ abstract class BaseAppAction protected constructor(protected val context: Contex
         val DATA_EXCLUDED_DIRS = listOf("cache", "code_cache", "lib")
         private val doNotStop = listOf(
                 "com.android.shell",  // don't remove this
+                BuildConfig.APPLICATION_ID, // don't stop ourselves, it's a dead lock
                 "com.android.systemui",
                 "com.android.externalstorage",
                 "com.android.providers.media",
