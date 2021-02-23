@@ -29,12 +29,12 @@ import com.machiav3lli.backup.items.AppInfo
 import com.machiav3lli.backup.items.BackupItem
 import timber.log.Timber
 
-val COLOR_UPDATE = Color.rgb(244, 51, 69)
-val COLOR_SYSTEM = Color.rgb(69, 144, 254)
-val COLOR_USER = Color.rgb(254, 144, 69)
-val COLOR_SPECIAL = Color.rgb(144, 69, 254)
-const val COLOR_DISABLED = Color.DKGRAY
-const val COLOR_UNINSTALLED = Color.GRAY
+val COLOR_UPDATE  = Color.parseColor("#FFFF33")
+val COLOR_SYSTEM  = Color.parseColor("#BB66FF")
+val COLOR_USER    = Color.parseColor("#FF9966")
+val COLOR_SPECIAL = Color.parseColor("#DDAA00")
+const val COLOR_DISABLED = Color.RED
+const val COLOR_UNINSTALLED = Color.DKGRAY
 
 fun calculateID(app: AppInfo): Long {
     return app.packageName.hashCode().toLong()
